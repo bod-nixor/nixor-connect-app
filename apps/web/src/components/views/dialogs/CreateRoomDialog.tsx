@@ -33,6 +33,7 @@ import { KeyBindingAction } from "../../../accessibility/KeyboardShortcuts";
 import { privateShouldBeEncrypted } from "../../../utils/rooms";
 import SettingsStore from "../../../settings/SettingsStore";
 import { UIFeature } from "../../../settings/UIFeature";
+import { canCreateNixorRoom } from "../../../nixor/permissions";
 
 interface IProps {
     type?: RoomType;
@@ -200,6 +201,11 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
     };
 
     private onOk = async (): Promise<void> => {
+        if (!canCreateNixorRoom()) {
+            this.props.onFinished(false);
+            return;
+        }
+
         if (!this.nameField.current) return;
         const activeElement = document.activeElement as HTMLElement;
         activeElement?.blur();

@@ -32,6 +32,7 @@ import {
 import { type OpenSpaceSettingsPayload } from "../dispatcher/payloads/OpenSpaceSettingsPayload";
 import { type OpenAddExistingToSpaceDialogPayload } from "../dispatcher/payloads/OpenAddExistingToSpaceDialogPayload";
 import { SdkContextClass } from "../contexts/SDKContext";
+import { canCreateNixorRoom, canCreateNixorServer } from "../nixor/permissions";
 
 export const shouldShowSpaceSettings = (space: Room): boolean => {
     const userId = space.client.getUserId()!;
@@ -68,15 +69,22 @@ export const showAddExistingRooms = (space: Room): void => {
 };
 
 export const showCreateNewRoom = async (space: Room, type?: RoomType): Promise<boolean> => {
+    if (!canCreateNixorRoom()) {
+        return false;
+    }
+
     const modal = Modal.createDialog(CreateRoomDialog, {
         type,
         defaultPublic: space.getJoinRule() === JoinRule.Public,
         parentSpace: space,
     });
+
     const [shouldCreate, opts] = await modal.finished;
+
     if (shouldCreate) {
         await createRoom(space.client, opts!);
     }
+
     return !!shouldCreate;
 };
 
@@ -106,6 +114,9 @@ export const showSpaceInvite = (space: Room, initialText = ""): void => {
 };
 
 export const showAddExistingSubspace = (space: Room): void => {
+    if (!canCreateNixorServer()) {
+        return;
+    }
     const { finished } = Modal.createDialog(
         AddExistingSubspaceDialog,
         {

@@ -8,6 +8,15 @@
             "base_url": "https://vector.im"
         }
     },
+    "nixor": {
+    "governance_api_base_url": "https://governance-api.example.com",
+    "governance_enabled": false,
+    "dev_permissions": {
+        "can_create_servers": false,
+        "can_create_rooms": false,
+        "can_manage_servers": false
+    }
+    },
     "disable_custom_urls": false,
     "disable_guests": false,
     "disable_login_language_selector": false,

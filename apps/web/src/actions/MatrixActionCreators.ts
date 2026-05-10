@@ -20,6 +20,7 @@ import {
 
 import dis from "../dispatcher/dispatcher";
 import { type ActionPayload } from "../dispatcher/payloads";
+import { canCreateNixorRoom } from "../nixor/permissions";
 
 /**
  * Create a MatrixActions.sync action that represents a MatrixClient `sync` event,

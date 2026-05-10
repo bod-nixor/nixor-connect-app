@@ -142,6 +142,7 @@ import { isOnlyAdmin } from "../../utils/membership";
 import { ModuleApi } from "../../modules/Api.ts";
 import { type IScreen } from "../../vector/routing.ts";
 import { type URLParams } from "../../vector/url_utils.ts";
+import { canCreateNixorRoom } from "../../nixor/permissions";
 
 // legacy export
 export { default as Views } from "../../Views";
@@ -806,6 +807,10 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
                 break;
             }
             case Action.CreateRoom:
+                if (!canCreateNixorRoom()) {
+                    break;
+                }
+
                 this.createRoom(payload.public, payload.defaultName, payload.type);
 
                 // View the welcome or home page if we need something to look at
@@ -1198,6 +1203,10 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
     }
 
     private async createRoom(defaultPublic = false, defaultName?: string, type?: RoomType): Promise<void> {
+        if (!canCreateNixorRoom()) {
+            return;
+        }
+
         const modal = Modal.createDialog(CreateRoomDialog, {
             type,
             defaultPublic,

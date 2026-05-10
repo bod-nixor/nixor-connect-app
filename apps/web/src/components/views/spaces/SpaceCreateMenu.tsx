@@ -48,6 +48,7 @@ import { type OpenSpotlightPayload } from "../../../dispatcher/payloads/OpenSpot
 import { useSettingValue } from "../../../hooks/useSettings.ts";
 import { UIFeature } from "../../../settings/UIFeature.ts";
 import SpacePillButton from "../../structures/SpacePillButton.tsx";
+import { canCreateNixorServer } from "../../../nixor/permissions";
 
 export const createSpace = async (
     client: MatrixClient,
@@ -59,6 +60,11 @@ export const createSpace = async (
     createOpts: Partial<ICreateRoomOpts> = {},
     otherOpts: Partial<Omit<ICreateOpts, "createOpts">> = {},
 ): Promise<string | null> => {
+    if (!canCreateNixorServer()) {
+        logger.warn("Nixor Connect: blocked unauthorized space/server creation from client");
+        return null;
+    }
+
     return createRoom(client, {
         name,
         topic,
