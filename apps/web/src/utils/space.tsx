@@ -82,6 +82,14 @@ export const showCreateNewRoom = async (space: Room, type?: RoomType): Promise<b
     const [shouldCreate, opts] = await modal.finished;
 
     if (shouldCreate) {
+        opts!.createOpts = {
+            ...(opts!.createOpts ?? {}),
+            creation_content: {
+                ...(opts!.createOpts?.creation_content ?? {}),
+                "io.nixor.parent_space_id": space.roomId,
+            },
+        };
+
         await createRoom(space.client, opts!);
     }
 
