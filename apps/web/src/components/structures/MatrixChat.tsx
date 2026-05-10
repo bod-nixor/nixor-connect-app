@@ -142,7 +142,7 @@ import { isOnlyAdmin } from "../../utils/membership";
 import { ModuleApi } from "../../modules/Api.ts";
 import { type IScreen } from "../../vector/routing.ts";
 import { type URLParams } from "../../vector/url_utils.ts";
-import { canCreateNixorRoom } from "../../nixor/permissions";
+import { canCreateNixorRoom, refreshNixorPermissions } from "../../nixor/permissions";
 
 // legacy export
 export { default as Views } from "../../Views";
@@ -486,6 +486,7 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
     }
 
     public componentDidMount(): void {
+        void refreshNixorPermissions(true);
         UIStore.instance.on(UI_EVENTS.Resize, this.handleResize);
 
         // For PersistentElement

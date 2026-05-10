@@ -11,6 +11,7 @@
     "nixor": {
         "governance_api_base_url": "https://governance-api.example.com",
         "governance_enabled": false,
+        "dev_governance_api_token": "",
         "dev_permissions": {
             "can_create_servers": false,
             "can_create_rooms": false,

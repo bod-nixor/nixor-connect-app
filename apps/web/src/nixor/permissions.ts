@@ -8,6 +8,20 @@ export interface NixorPermissions {
     managed_space_ids: string[];
 }
 
+interface NixorConfig {
+    governance_api_base_url?: string;
+    governance_enabled?: boolean;
+    dev_governance_api_token?: string;
+    dev_permissions?: Partial<NixorPermissions>;
+    dev_permissions_by_user?: Record<string, Partial<NixorPermissions>>;
+}
+
+interface GovernancePermissionsResponse {
+    ok: boolean;
+    matrix_user_id: string;
+    permissions: Partial<NixorPermissions>;
+}
+
 const DEFAULT_PERMISSIONS: NixorPermissions = {
     can_create_servers: false,
     can_create_rooms: false,
@@ -15,11 +29,12 @@ const DEFAULT_PERMISSIONS: NixorPermissions = {
     managed_space_ids: [],
 };
 
-type NixorConfig = {
-    governance_enabled?: boolean;
-    dev_permissions?: Partial<NixorPermissions>;
-    dev_permissions_by_user?: Record<string, Partial<NixorPermissions>>;
-};
+const CACHE_TTL_MS = 15_000;
+
+let cachedPermissions: NixorPermissions | null = null;
+let cachedMatrixUserId: string | null = null;
+let lastFetchAt = 0;
+let inFlightFetch: Promise<NixorPermissions> | null = null;
 
 function normalizePermissions(permissions?: Partial<NixorPermissions>): NixorPermissions {
     return {
@@ -27,6 +42,10 @@ function normalizePermissions(permissions?: Partial<NixorPermissions>): NixorPer
         ...permissions,
         managed_space_ids: permissions?.managed_space_ids ?? [],
     };
+}
+
+function getNixorConfig(): NixorConfig | undefined {
+    return SdkConfig.get()?.nixor as NixorConfig | undefined;
 }
 
 function getCurrentMatrixUserId(): string | null {
@@ -37,27 +56,102 @@ function getCurrentMatrixUserId(): string | null {
     }
 }
 
-export function getNixorPermissions(): NixorPermissions {
-    const config = SdkConfig.get();
-
-    const nixorConfig = config?.nixor as NixorConfig | undefined;
-
+function getDevPermissions(nixorConfig: NixorConfig | undefined, matrixUserId: string | null): NixorPermissions {
     if (!nixorConfig) return DEFAULT_PERMISSIONS;
 
-    // Temporary local development mode.
-    // Later this will call the private Nixor Governance API,
-    // which will verify permissions against NCP.
-    if (!nixorConfig.governance_enabled) {
-        const currentUserId = getCurrentMatrixUserId();
-
-        if (currentUserId && nixorConfig.dev_permissions_by_user?.[currentUserId]) {
-            return normalizePermissions(nixorConfig.dev_permissions_by_user[currentUserId]);
-        }
-
-        return normalizePermissions(nixorConfig.dev_permissions);
+    if (matrixUserId && nixorConfig.dev_permissions_by_user?.[matrixUserId]) {
+        return normalizePermissions(nixorConfig.dev_permissions_by_user[matrixUserId]);
     }
 
-    return DEFAULT_PERMISSIONS;
+    return normalizePermissions(nixorConfig.dev_permissions);
+}
+
+export async function refreshNixorPermissions(force = false): Promise<NixorPermissions> {
+    const nixorConfig = getNixorConfig();
+    const matrixUserId = getCurrentMatrixUserId();
+
+    if (!nixorConfig?.governance_enabled || !matrixUserId) {
+        cachedPermissions = getDevPermissions(nixorConfig, matrixUserId);
+        cachedMatrixUserId = matrixUserId;
+        lastFetchAt = Date.now();
+        return cachedPermissions;
+    }
+
+    const now = Date.now();
+
+    if (
+        !force &&
+        cachedPermissions &&
+        cachedMatrixUserId === matrixUserId &&
+        now - lastFetchAt < CACHE_TTL_MS
+    ) {
+        return cachedPermissions;
+    }
+
+    if (inFlightFetch) {
+        return inFlightFetch;
+    }
+
+    const baseUrl = nixorConfig.governance_api_base_url?.replace(/\/$/, "");
+
+    if (!baseUrl) {
+        cachedPermissions = DEFAULT_PERMISSIONS;
+        cachedMatrixUserId = matrixUserId;
+        lastFetchAt = now;
+        return cachedPermissions;
+    }
+
+    inFlightFetch = fetch(`${baseUrl}/api/users/${encodeURIComponent(matrixUserId)}/permissions`, {
+        method: "GET",
+        headers: {
+            "Content-Type": "application/json",
+            ...(nixorConfig.dev_governance_api_token
+                ? { Authorization: `Bearer ${nixorConfig.dev_governance_api_token}` }
+                : {}),
+        },
+    })
+        .then(async (response) => {
+            const body = (await response.json()) as GovernancePermissionsResponse;
+
+            if (!response.ok || !body.ok) {
+                throw new Error(`Failed to fetch Nixor permissions: ${response.status}`);
+            }
+
+            cachedPermissions = normalizePermissions(body.permissions);
+            cachedMatrixUserId = matrixUserId;
+            lastFetchAt = Date.now();
+
+            return cachedPermissions;
+        })
+        .catch((error) => {
+            console.warn("Nixor Connect: failed to fetch governance permissions", error);
+
+            cachedPermissions = getDevPermissions(nixorConfig, matrixUserId);
+            cachedMatrixUserId = matrixUserId;
+            lastFetchAt = Date.now();
+
+            return cachedPermissions;
+        })
+        .finally(() => {
+            inFlightFetch = null;
+        });
+
+    return inFlightFetch;
+}
+
+export function getNixorPermissions(): NixorPermissions {
+    const nixorConfig = getNixorConfig();
+    const matrixUserId = getCurrentMatrixUserId();
+
+    if (!nixorConfig?.governance_enabled) {
+        return getDevPermissions(nixorConfig, matrixUserId);
+    }
+
+    if (!cachedPermissions || cachedMatrixUserId !== matrixUserId || Date.now() - lastFetchAt > CACHE_TTL_MS) {
+        void refreshNixorPermissions();
+    }
+
+    return cachedPermissions ?? DEFAULT_PERMISSIONS;
 }
 
 function managesSpace(spaceId?: string | null): boolean {
