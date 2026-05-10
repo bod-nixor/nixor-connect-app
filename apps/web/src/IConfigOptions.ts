@@ -25,6 +25,7 @@ export const BugReportEndpointURLLocal = "local";
 
 // see element-web config.md for non-developer docs
 export interface IConfigOptions {
+    nixor: { governance_enabled?: boolean | undefined; dev_permissions?: Partial<Permissions> | undefined; } | undefined;
     // dev note: while true that this is arbitrary JSON, it's valuable to enforce that all
     // config options are documented for "find all usages" sort of searching.
     // [key: string]: any;
