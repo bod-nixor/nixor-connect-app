@@ -272,26 +272,24 @@ export default async function createRoom(client: MatrixClient, opts: IOpts): Pro
 
     // If we are not encrypting state, copy name, topic, avatar over to
     // createOpts so we pass them in when we call Client.createRoom().
-    if (!opts.stateEncryption) {
-        if (opts.name) {
-            createOpts.name = opts.name;
+    if (opts.name) {
+        createOpts.name = opts.name;
+    }
+
+    if (opts.topic) {
+        createOpts.topic = opts.topic;
+    }
+
+    if (opts.avatar) {
+        let url = opts.avatar;
+        if (opts.avatar instanceof File) {
+            ({ content_uri: url } = await client.uploadContent(opts.avatar));
         }
 
-        if (opts.topic) {
-            createOpts.topic = opts.topic;
-        }
-
-        if (opts.avatar) {
-            let url = opts.avatar;
-            if (opts.avatar instanceof File) {
-                ({ content_uri: url } = await client.uploadContent(opts.avatar));
-            }
-
-            createOpts.initial_state.push({
-                type: EventType.RoomAvatar,
-                content: { url },
-            });
-        }
+        createOpts.initial_state.push({
+            type: EventType.RoomAvatar,
+            content: { url },
+        });
     }
 
     // Set history visibility to "invited" for DMs and non-public rooms unless explicitly overridden
@@ -314,6 +312,18 @@ export default async function createRoom(client: MatrixClient, opts: IOpts): Pro
                 history_visibility: historyVisibility,
             },
         });
+    }
+
+    // Nixor Connect policy: end-to-end encryption is disabled platform-wide.
+    // This is enforced server-side as well; this client-side block prevents
+    // confusing UI flows and accidental encrypted-room creation attempts.
+    opts.encryption = false;
+    opts.stateEncryption = false;
+
+    if (opts.createOpts) {
+        opts.createOpts.initial_state = (opts.createOpts.initial_state ?? []).filter(
+            (event) => event.type !== "m.room.encryption",
+        );
     }
 
     let modal: IHandle<any> | undefined;

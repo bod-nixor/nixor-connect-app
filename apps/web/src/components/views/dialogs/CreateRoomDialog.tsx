@@ -123,8 +123,8 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
         const cli = MatrixClientPeg.safeGet();
         this.state = {
             isPublicKnockRoom: defaultPublic || false,
-            isEncrypted: this.props.defaultEncrypted ?? privateShouldBeEncrypted(cli),
-            isStateEncrypted: this.props.defaultStateEncrypted ?? false,
+            isEncrypted: false,
+            isStateEncrypted: false,
             joinRule,
             name: this.props.defaultName || "",
             topic: "",
@@ -149,10 +149,10 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
             const { alias } = this.state;
             createOpts.room_alias_name = alias.substring(1, alias.indexOf(":"));
         } else {
-            const encryptedStateFeature = SettingsStore.getValue("feature_msc4362_encrypted_state_events", null, false);
+            //const encryptedStateFeature = SettingsStore.getValue("feature_msc4362_encrypted_state_events", null, false);
 
-            opts.encryption = this.state.isEncrypted;
-            opts.stateEncryption = encryptedStateFeature && this.state.isStateEncrypted;
+            opts.encryption = false;
+            opts.stateEncryption = false;
         }
 
         if (this.state.topic) {
@@ -386,16 +386,6 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
             } else {
                 microcopy = _t("settings|security|e2ee_default_disabled_warning");
             }
-            e2eeSection = (
-                <SettingsToggleInput
-                    name="encryption-toggle"
-                    label={_t("create_room|encryption_label")}
-                    onChange={this.onEncryptedChange}
-                    checked={this.state.isEncrypted}
-                    disabled={!this.state.canChangeEncryption}
-                    helpMessage={microcopy}
-                />
-            );
         }
 
         let e2eeStateSection: JSX.Element | undefined;
@@ -409,16 +399,6 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
             } else {
                 microcopy = _t("create_room|state_encrypted_warning");
             }
-            e2eeStateSection = (
-                <SettingsToggleInput
-                    name="state-encryption-toggle"
-                    label={_t("create_room|state_encryption_label")}
-                    onChange={this.onStateEncryptedChange}
-                    checked={this.state.isStateEncrypted}
-                    disabled={!this.state.canChangeEncryption}
-                    helpMessage={microcopy}
-                />
-            );
         }
 
         let federateLabel = _t("create_room|unfederated_label_default_off");
