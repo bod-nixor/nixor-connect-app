@@ -1,11 +1,11 @@
 {
-    "name": "element-web",
+    "name": "nixor-connect",
     "version": "1.12.17",
-    "description": "Element: the future of secure communication",
-    "author": "New Vector Ltd.",
+    "description": "Nixor Connect: Secure communication by Nixor College",
+    "author": "Nixor College",
     "repository": {
         "type": "git",
-        "url": "https://github.com/element-hq/element-web"
+        "url": "https://github.com/"
     },
     "license": "SEE LICENSE IN README.md",
     "type": "module",
