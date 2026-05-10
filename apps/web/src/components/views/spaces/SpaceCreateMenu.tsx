@@ -206,6 +206,11 @@ export const SpaceCreateForm: React.FC<ISpaceCreateFormProps> = ({
 const SpaceCreateMenu: React.FC<{
     onFinished(this: void): void;
 }> = ({ onFinished }) => {
+    if (!canCreateNixorServer()) {
+        onFinished();
+        return null;
+    }
+
     const cli = useMatrixClientContext();
     const settingAllowPublicSpaces = useSettingValue(UIFeature.AllowCreatingPublicSpaces);
     const [visibility, setVisibility] = useState<Visibility | null>(
