@@ -1,10 +1,11 @@
 import SdkConfig from "../SdkConfig";
+import { MatrixClientPeg } from "../MatrixClientPeg";
 
 export interface NixorPermissions {
-    can_create_servers: boolean; // school admin global permission
-    can_create_rooms: boolean; // school admin global permission
-    can_manage_servers: boolean; // school admin global permission
-    managed_space_ids: string[]; // spaces where this user is a space/server admin
+    can_create_servers: boolean;
+    can_create_rooms: boolean;
+    can_manage_servers: boolean;
+    managed_space_ids: string[];
 }
 
 const DEFAULT_PERMISSIONS: NixorPermissions = {
@@ -14,15 +15,32 @@ const DEFAULT_PERMISSIONS: NixorPermissions = {
     managed_space_ids: [],
 };
 
+type NixorConfig = {
+    governance_enabled?: boolean;
+    dev_permissions?: Partial<NixorPermissions>;
+    dev_permissions_by_user?: Record<string, Partial<NixorPermissions>>;
+};
+
+function normalizePermissions(permissions?: Partial<NixorPermissions>): NixorPermissions {
+    return {
+        ...DEFAULT_PERMISSIONS,
+        ...permissions,
+        managed_space_ids: permissions?.managed_space_ids ?? [],
+    };
+}
+
+function getCurrentMatrixUserId(): string | null {
+    try {
+        return MatrixClientPeg.safeGet().getUserId();
+    } catch {
+        return null;
+    }
+}
+
 export function getNixorPermissions(): NixorPermissions {
     const config = SdkConfig.get();
 
-    const nixorConfig = config?.nixor as
-        | {
-              governance_enabled?: boolean;
-              dev_permissions?: Partial<NixorPermissions>;
-          }
-        | undefined;
+    const nixorConfig = config?.nixor as NixorConfig | undefined;
 
     if (!nixorConfig) return DEFAULT_PERMISSIONS;
 
@@ -30,11 +48,13 @@ export function getNixorPermissions(): NixorPermissions {
     // Later this will call the private Nixor Governance API,
     // which will verify permissions against NCP.
     if (!nixorConfig.governance_enabled) {
-        return {
-            ...DEFAULT_PERMISSIONS,
-            ...nixorConfig.dev_permissions,
-            managed_space_ids: nixorConfig.dev_permissions?.managed_space_ids ?? [],
-        };
+        const currentUserId = getCurrentMatrixUserId();
+
+        if (currentUserId && nixorConfig.dev_permissions_by_user?.[currentUserId]) {
+            return normalizePermissions(nixorConfig.dev_permissions_by_user[currentUserId]);
+        }
+
+        return normalizePermissions(nixorConfig.dev_permissions);
     }
 
     return DEFAULT_PERMISSIONS;
@@ -55,10 +75,8 @@ export function canCreateNixorServer(): boolean {
 export function canCreateNixorRoom(parentSpaceId?: string | null): boolean {
     const permissions = getNixorPermissions();
 
-    // School admins can create rooms anywhere.
     if (permissions.can_create_rooms) return true;
 
-    // Space/server admins can only create rooms inside spaces they manage.
     return managesSpace(parentSpaceId);
 }
 
