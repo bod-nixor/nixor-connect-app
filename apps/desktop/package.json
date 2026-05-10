@@ -1,5 +1,5 @@
 {
-    "name": "nixor-connect-desktop",
+    "name": "element-desktop",
     "productName": "Nixor Connect",
     "main": "lib/electron-main.js",
     "exports": "./lib/electron-main.js",
