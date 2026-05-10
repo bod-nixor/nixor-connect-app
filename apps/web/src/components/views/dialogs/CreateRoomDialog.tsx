@@ -201,7 +201,7 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
     };
 
     private onOk = async (): Promise<void> => {
-        if (!canCreateNixorRoom()) {
+        if (!canCreateNixorRoom(this.props.parentSpace?.roomId)) {
             this.props.onFinished(false);
             return;
         }

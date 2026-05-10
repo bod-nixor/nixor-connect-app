@@ -69,7 +69,7 @@ export const showAddExistingRooms = (space: Room): void => {
 };
 
 export const showCreateNewRoom = async (space: Room, type?: RoomType): Promise<boolean> => {
-    if (!canCreateNixorRoom()) {
+    if (!canCreateNixorRoom(space.roomId)) {
         return false;
     }
 

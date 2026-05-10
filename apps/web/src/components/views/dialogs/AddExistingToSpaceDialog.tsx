@@ -35,6 +35,7 @@ import LazyRenderList from "../elements/LazyRenderList";
 import { useSettingValue } from "../../../hooks/useSettings";
 import { filterBoolean } from "../../../utils/arrays";
 import { type NonEmptyArray } from "../../../@types/common";
+import { canCreateNixorRoom, canCreateNixorServer } from "../../../nixor/permissions";
 
 // These values match CSS
 const ROW_HEIGHT = 32 + 12;
@@ -454,6 +455,9 @@ export const SubspaceSelector: React.FC<ISubspaceSelectorProps> = ({ title, spac
 const AddExistingToSpaceDialog: React.FC<IProps> = ({ space, onCreateRoomClick, onAddSubspaceClick, onFinished }) => {
     const [selectedSpace, setSelectedSpace] = useState(space);
 
+    const canCreateRoomInSpace = canCreateNixorRoom(space.roomId);
+    const canCreateOrAddSubspace = canCreateNixorServer();
+
     return (
         <BaseDialog
             title={
@@ -474,35 +478,41 @@ const AddExistingToSpaceDialog: React.FC<IProps> = ({ space, onCreateRoomClick, 
                     space={space}
                     onFinished={onFinished}
                     footerPrompt={
-                        <>
-                            <div>{_t("space|add_existing_room_space|create")}</div>
-                            <AccessibleButton
-                                kind="link"
-                                onClick={(ev: ButtonEvent) => {
-                                    onCreateRoomClick(ev);
-                                    onFinished();
-                                }}
-                            >
-                                {_t("space|add_existing_room_space|create_prompt")}
-                            </AccessibleButton>
-                        </>
+                        canCreateRoomInSpace ? (
+                            <>
+                                <div>{_t("space|add_existing_room_space|create")}</div>
+                                <AccessibleButton
+                                    kind="link"
+                                    onClick={(ev: ButtonEvent) => {
+                                        onCreateRoomClick(ev);
+                                        onFinished();
+                                    }}
+                                >
+                                    {_t("space|add_existing_room_space|create_prompt")}
+                                </AccessibleButton>
+                            </>
+                        ) : null
                     }
                     filterPlaceholder={_t("space|room_filter_placeholder")}
                     roomsRenderer={defaultRoomsRenderer}
-                    spacesRenderer={() => (
-                        <div className="mx_AddExistingToSpace_section">
-                            <h3>{_t("common|spaces")}</h3>
-                            <AccessibleButton
-                                kind="link"
-                                onClick={() => {
-                                    onAddSubspaceClick();
-                                    onFinished();
-                                }}
-                            >
-                                {_t("space|add_existing_room_space|subspace_moved_note")}
-                            </AccessibleButton>
-                        </div>
-                    )}
+                    spacesRenderer={
+                        canCreateOrAddSubspace
+                            ? () => (
+                                  <div className="mx_AddExistingToSpace_section">
+                                      <h3>{_t("common|spaces")}</h3>
+                                      <AccessibleButton
+                                          kind="link"
+                                          onClick={() => {
+                                              onAddSubspaceClick();
+                                              onFinished();
+                                          }}
+                                      >
+                                          {_t("space|add_existing_room_space|subspace_moved_note")}
+                                      </AccessibleButton>
+                                  </div>
+                              )
+                            : undefined
+                    }
                     dmsRenderer={defaultDmsRenderer}
                 />
             </MatrixClientContext.Provider>
