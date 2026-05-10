@@ -14,7 +14,7 @@ const NIXOR_BRAND = "Nixor Connect";
  * This is currently a naive check of whether the `brand` config starts with the substring `Nixor Connect ` or is the literal `Nixor Connect`,
  * which correctly covers `Nixor Connect` (release), `Nixor Connect Nightly` & `Nixor Connect Pro`.
  */
-export const isNixorBranded = (): boolean => {
+export const isElementBranded = (): boolean => {
     const brand = SdkConfig.get("brand");
     return brand === NIXOR_BRAND || brand.startsWith(NIXOR_BRAND + " ");
 };
