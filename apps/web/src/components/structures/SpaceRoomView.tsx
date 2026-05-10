@@ -77,6 +77,11 @@ import { type RoomPermalinkCreator } from "../../utils/permalinks/Permalinks";
 import SpacePillButton from "./SpacePillButton.tsx";
 import { useRoomName } from "../../hooks/useRoomName.ts";
 import MultiInviter from "../../utils/MultiInviter.ts";
+import {
+    canCreateNixorRoom,
+    canCreateNixorServer,
+    canManageNixorServer,
+} from "../../nixor/permissions";
 
 interface IProps {
     space: Room;
@@ -124,7 +129,7 @@ const SpaceLandingAddButton: React.FC<{ space: Room }> = ({ space }) => {
                 compact
             >
                 <IconizedContextMenuOptionList first>
-                    {canCreateRoom && (
+                    {canCreateRoom && canCreateNixorRoom(space.roomId) && (
                         <>
                             <IconizedContextMenuOption
                                 label={_t("action|new_room")}
@@ -166,17 +171,19 @@ const SpaceLandingAddButton: React.FC<{ space: Room }> = ({ space }) => {
                             )}
                         </>
                     )}
-                    <IconizedContextMenuOption
-                        label={_t("action|add_existing_room")}
-                        icon={<RoomIcon />}
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            closeMenu();
-                            showAddExistingRooms(space);
-                        }}
-                    />
-                    {canCreateSpace && (
+                    {canManageNixorServer(space.roomId) && (
+                        <IconizedContextMenuOption
+                            label={_t("action|add_existing_room")}
+                            icon={<RoomIcon />}
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                closeMenu();
+                                showAddExistingRooms(space);
+                            }}
+                        />
+                    )}
+                    {canCreateSpace && canCreateNixorServer() && (
                         <IconizedContextMenuOption
                             label={_t("room_list|add_space_label")}
                             icon={<PlusIcon />}
