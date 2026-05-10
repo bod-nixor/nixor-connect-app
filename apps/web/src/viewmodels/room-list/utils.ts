@@ -13,6 +13,7 @@ import { UIComponent } from "../../settings/UIFeature";
 import { showCreateNewRoom } from "../../utils/space";
 import dispatcher from "../../dispatcher/dispatcher";
 import { Action } from "../../dispatcher/actions";
+import { canCreateNixorRoom } from "../../nixor/permissions";
 
 /**
  * Check if the user has access to the options menu.
@@ -57,12 +58,20 @@ export async function createRoom(space?: Room | null): Promise<void> {
  */
 export function hasCreateRoomRights(matrixClient: MatrixClient, space?: Room | null): boolean {
     const hasUIRight = shouldShowComponent(UIComponent.CreateRooms);
-    if (!space || !hasUIRight) return hasUIRight;
+    if (!hasUIRight) return false;
 
-    return Boolean(
-        space
-            ?.getLiveTimeline()
-            .getState(EventTimeline.FORWARDS)
-            ?.maySendStateEvent(EventType.RoomAvatar, matrixClient.getSafeUserId()),
-    );
+    if (space) {
+        // Space-specific room creation: check if user can send RoomAvatar state or manages the space
+        const canSendStateEvent = Boolean(
+            space
+                ?.getLiveTimeline()
+                .getState(EventTimeline.FORWARDS)
+                ?.maySendStateEvent(EventType.RoomAvatar, matrixClient.getSafeUserId()),
+        );
+        const canCreateInSpace = canCreateNixorRoom(space.roomId);
+        return canSendStateEvent || canCreateInSpace;
+    } else {
+        // Global room creation: only for users with global room creation permission (school admins)
+        return canCreateNixorRoom();
+    }
 }

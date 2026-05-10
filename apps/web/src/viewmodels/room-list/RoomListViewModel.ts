@@ -38,6 +38,7 @@ import { keepIfSame } from "../../utils/keepIfSame";
 import { DefaultTagID } from "../../stores/room-list-v3/skip-list/tag";
 import { RoomListSectionHeaderViewModel } from "./RoomListSectionHeaderViewModel";
 import SettingsStore from "../../settings/SettingsStore";
+import { canCreateNixorRoom } from "../../nixor/permissions";
 
 /**
  * Tracks the position of the active room within a specific section.
