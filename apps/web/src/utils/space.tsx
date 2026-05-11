@@ -33,6 +33,12 @@ import { type OpenSpaceSettingsPayload } from "../dispatcher/payloads/OpenSpaceS
 import { type OpenAddExistingToSpaceDialogPayload } from "../dispatcher/payloads/OpenAddExistingToSpaceDialogPayload";
 import { SdkContextClass } from "../contexts/SDKContext";
 import { canCreateNixorRoom, canCreateNixorServer } from "../nixor/permissions";
+import { Visibility } from "matrix-js-sdk/src/matrix";
+import {
+    createChannel as createGovernanceChannel,
+    getServerBySpaceId,
+    isNixorGovernanceEnabled,
+} from "../nixor/governanceApi";
 
 export const shouldShowSpaceSettings = (space: Room): boolean => {
     const userId = space.client.getUserId()!;
@@ -81,19 +87,53 @@ export const showCreateNewRoom = async (space: Room, type?: RoomType): Promise<b
 
     const [shouldCreate, opts] = await modal.finished;
 
-    if (shouldCreate) {
-        opts!.createOpts = {
-            ...(opts!.createOpts ?? {}),
-            creation_content: {
-                ...(opts!.createOpts?.creation_content ?? {}),
-                "io.nixor.parent_space_id": space.roomId,
-            },
-        };
-
-        await createRoom(space.client, opts!);
+    if (!shouldCreate || !opts) {
+        return false;
     }
 
-    return !!shouldCreate;
+    if (isNixorGovernanceEnabled()) {
+        const requesterMatrixUserId = space.client.getUserId();
+
+        if (!requesterMatrixUserId) {
+            throw new Error("Cannot create Nixor channel without a logged-in Matrix user");
+        }
+
+        const server = await getServerBySpaceId(space.roomId);
+
+        const visibility =
+            opts.createOpts?.visibility === Visibility.Public
+                ? "public"
+                : "private";
+
+        const channel = await createGovernanceChannel(server.public_id, {
+            requester_matrix_user_id: requesterMatrixUserId,
+            name: opts.name ?? "",
+            topic: opts.topic,
+            visibility,
+        });
+
+        await space.client.joinRoom(channel.matrix_room_id);
+
+        defaultDispatcher.dispatch({
+            action: Action.ViewRoom,
+            room_id: channel.matrix_room_id,
+        });
+
+        return true;
+    }
+
+    // Local/dev fallback when Governance API is disabled.
+    opts.createOpts = {
+        ...(opts.createOpts ?? {}),
+        creation_content: {
+            ...(opts.createOpts?.creation_content ?? {}),
+            "io.nixor.parent_space_id": space.roomId,
+        },
+    };
+
+    await createRoom(space.client, opts);
+
+    return true;
 };
 
 export const shouldShowSpaceInvite = (space: Room): boolean =>
