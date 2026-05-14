@@ -9,7 +9,7 @@ Please see LICENSE files in the repository root for full details.
 import { EventType, RoomType, JoinRule, Preset, type Room, RoomEvent } from "matrix-js-sdk/src/matrix";
 import { KnownMembership } from "matrix-js-sdk/src/types";
 import { logger } from "matrix-js-sdk/src/logger";
-import React, { type JSX, useCallback, useContext, useRef, useState } from "react";
+import React, { type JSX, useCallback, useRef, useState } from "react";
 import {
     GroupIcon,
     PlusIcon,
@@ -77,11 +77,8 @@ import { type RoomPermalinkCreator } from "../../utils/permalinks/Permalinks";
 import SpacePillButton from "./SpacePillButton.tsx";
 import { useRoomName } from "../../hooks/useRoomName.ts";
 import MultiInviter from "../../utils/MultiInviter.ts";
-import {
-    canCreateNixorRoom,
-    canCreateNixorServer,
-    canManageNixorServer,
-} from "../../nixor/permissions";
+import { canCreateNixorRoom, canCreateNixorServer } from "../../nixor/permissions";
+import { isNixorGovernanceEnabled } from "../../nixor/governanceApi";
 
 interface IProps {
     space: Room;
@@ -171,7 +168,7 @@ const SpaceLandingAddButton: React.FC<{ space: Room }> = ({ space }) => {
                             )}
                         </>
                     )}
-                    {canManageNixorServer(space.roomId) && (
+                    {canCreateNixorServer() && (
                         <IconizedContextMenuOption
                             label={_t("action|add_existing_room")}
                             icon={<RoomIcon />}
@@ -183,7 +180,7 @@ const SpaceLandingAddButton: React.FC<{ space: Room }> = ({ space }) => {
                             }}
                         />
                     )}
-                    {canCreateSpace && canCreateNixorServer() && (
+                    {!isNixorGovernanceEnabled() && canCreateSpace && canCreateNixorServer() && (
                         <IconizedContextMenuOption
                             label={_t("room_list|add_space_label")}
                             icon={<PlusIcon />}
@@ -219,9 +216,7 @@ const SpaceLandingAddButton: React.FC<{ space: Room }> = ({ space }) => {
 };
 
 const SpaceLanding: React.FC<{ space: Room }> = ({ space }) => {
-    const cli = useContext(MatrixClientContext);
     const myMembership = useMyRoomMembership(space);
-    const userId = cli.getSafeUserId();
     const name = useRoomName(space);
 
     const storeIsShowingSpaceMembers = useCallback(
@@ -249,7 +244,7 @@ const SpaceLanding: React.FC<{ space: Room }> = ({ space }) => {
     }
 
     const hasAddRoomPermissions =
-        myMembership === KnownMembership.Join && space.currentState.maySendStateEvent(EventType.SpaceChild, userId);
+        myMembership === KnownMembership.Join && (canCreateNixorRoom(space.roomId) || canCreateNixorServer());
 
     let addRoomButton;
     if (hasAddRoomPermissions) {

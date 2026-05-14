@@ -9,7 +9,6 @@ Please see LICENSE files in the repository root for full details.
 import { ClientEvent, type MatrixClient } from "matrix-js-sdk/src/matrix";
 import { logger } from "matrix-js-sdk/src/logger";
 
-import { canEncryptToAllUsers } from "../createRoom";
 import { Action } from "../dispatcher/actions";
 import { type ViewRoomPayload } from "../dispatcher/payloads/ViewRoomPayload";
 import dis from "../dispatcher/dispatcher";

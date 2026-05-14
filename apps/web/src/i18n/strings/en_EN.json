@@ -1720,6 +1720,18 @@
         "empty_description": "You have no visible notifications.",
         "empty_heading": "You're all caught up"
     },
+    "nixor": {
+        "server_roles": {
+            "admins": "Server admins",
+            "load_error": "Unable to load server roles",
+            "matrix_user_id": "Matrix user ID",
+            "moderators": "Moderators",
+            "none": "No users assigned",
+            "save_error": "Unable to update server roles",
+            "tab": "Nixor roles",
+            "title": "Nixor Connect roles"
+        }
+    },
     "notifications": {
         "all_messages": "All messages",
         "all_messages_description": "Get notified for every message",

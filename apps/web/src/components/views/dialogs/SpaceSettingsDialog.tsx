@@ -28,11 +28,15 @@ import AdvancedRoomSettingsTab from "../settings/tabs/room/AdvancedRoomSettingsT
 import RolesRoomSettingsTab from "../settings/tabs/room/RolesRoomSettingsTab";
 import { Action } from "../../../dispatcher/actions";
 import { type NonEmptyArray } from "../../../@types/common";
+import NixorServerRolesTab from "../spaces/NixorServerRolesTab";
+import { canManageNixorServerRoles } from "../../../nixor/permissions";
+import { isNixorGovernanceEnabled } from "../../../nixor/governanceApi";
 
 export enum SpaceSettingsTab {
     General = "SPACE_GENERAL_TAB",
     Visibility = "SPACE_VISIBILITY_TAB",
     Roles = "SPACE_ROLES_TAB",
+    NixorRoles = "SPACE_NIXOR_ROLES_TAB",
     Advanced = "SPACE_ADVANCED_TAB",
 }
 
@@ -69,6 +73,14 @@ const SpaceSettingsDialog: React.FC<IProps> = ({ matrixClient: cli, space, onFin
                 <AdminIcon />,
                 <RolesRoomSettingsTab room={space} />,
             ),
+            isNixorGovernanceEnabled() && canManageNixorServerRoles()
+                ? new Tab(
+                      SpaceSettingsTab.NixorRoles,
+                      _td("nixor|server_roles|tab"),
+                      <AdminIcon />,
+                      <NixorServerRolesTab matrixClient={cli} space={space} />,
+                  )
+                : null,
             SettingsStore.getValue(UIFeature.AdvancedSettings)
                 ? new Tab(
                       SpaceSettingsTab.Advanced,

@@ -249,7 +249,7 @@ const CreateSpaceButton: React.FC<Pick<IInnerSpacePanelProps, "isPanelCollapsed"
 
     let contextMenu: JSX.Element | undefined;
     if (menuDisplayed) {
-        contextMenu = canCreateNixorServer() ? <SpaceCreateMenu onFinished={closeMenu} /> : null;
+        contextMenu = canCreateNixorServer() ? <SpaceCreateMenu onFinished={closeMenu} /> : undefined;
     }
 
     const onNewClick = menuDisplayed

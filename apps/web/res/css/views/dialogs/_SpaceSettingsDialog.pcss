@@ -71,4 +71,30 @@ Please see LICENSE files in the repository root for full details.
             }
         }
     }
+
+    .mx_NixorServerRolesTab_list {
+        list-style: none;
+        margin: 0 0 $spacing-16;
+        padding: 0;
+        display: grid;
+        gap: $spacing-8;
+    }
+
+    .mx_NixorServerRolesTab_row,
+    .mx_NixorServerRolesTab_form {
+        display: flex;
+        align-items: center;
+        gap: $spacing-12;
+    }
+
+    .mx_NixorServerRolesTab_userId {
+        min-width: 0;
+        overflow-wrap: anywhere;
+        flex: 1;
+    }
+
+    .mx_NixorServerRolesTab_empty {
+        color: $secondary-content;
+        margin-bottom: $spacing-12;
+    }
 }

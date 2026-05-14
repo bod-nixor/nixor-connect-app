@@ -49,6 +49,7 @@ import { useSettingValue } from "../../../hooks/useSettings.ts";
 import { UIFeature } from "../../../settings/UIFeature.ts";
 import SpacePillButton from "../../structures/SpacePillButton.tsx";
 import { canCreateNixorServer } from "../../../nixor/permissions";
+import { createServer as createGovernanceServer, isNixorGovernanceEnabled } from "../../../nixor/governanceApi";
 
 export const createSpace = async (
     client: MatrixClient,
@@ -63,6 +64,35 @@ export const createSpace = async (
     if (!canCreateNixorServer()) {
         logger.warn("Nixor Connect: blocked unauthorized space/server creation from client");
         return null;
+    }
+
+    if (isNixorGovernanceEnabled()) {
+        if (otherOpts.parentSpace) {
+            logger.warn("Nixor Connect: blocked subspace creation; governed servers must be top-level spaces");
+            return null;
+        }
+
+        const requesterMatrixUserId = client.getUserId();
+
+        if (!requesterMatrixUserId) {
+            throw new Error("Cannot create Nixor server without a logged-in Matrix user");
+        }
+
+        const server = await createGovernanceServer({
+            requester_matrix_user_id: requesterMatrixUserId,
+            name,
+            topic,
+            visibility: isPublic ? "public" : "private",
+        });
+
+        await client.joinRoom(server.matrix_space_id);
+
+        defaultDispatcher.dispatch({
+            action: Action.ViewRoom,
+            room_id: server.matrix_space_id,
+        });
+
+        return server.matrix_space_id;
     }
 
     return createRoom(client, {

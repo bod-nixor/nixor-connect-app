@@ -5,7 +5,7 @@
  * Please see LICENSE files in the repository root for full details.
  */
 
-import { type Room, KnownMembership, EventTimeline, EventType, type MatrixClient } from "matrix-js-sdk/src/matrix";
+import { type Room, KnownMembership, type MatrixClient } from "matrix-js-sdk/src/matrix";
 
 import { isKnockDenied } from "../../utils/membership";
 import { shouldShowComponent } from "../../customisations/helpers/UIComponents";
@@ -61,15 +61,7 @@ export function hasCreateRoomRights(matrixClient: MatrixClient, space?: Room | n
     if (!hasUIRight) return false;
 
     if (space) {
-        // Space-specific room creation: check if user can send RoomAvatar state or manages the space
-        const canSendStateEvent = Boolean(
-            space
-                ?.getLiveTimeline()
-                .getState(EventTimeline.FORWARDS)
-                ?.maySendStateEvent(EventType.RoomAvatar, matrixClient.getSafeUserId()),
-        );
-        const canCreateInSpace = canCreateNixorRoom(space.roomId);
-        return canSendStateEvent || canCreateInSpace;
+        return canCreateNixorRoom(space.roomId);
     } else {
         // Global room creation: only for users with global room creation permission (school admins)
         return canCreateNixorRoom();

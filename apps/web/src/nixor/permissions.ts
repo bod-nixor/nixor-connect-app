@@ -5,7 +5,10 @@ export interface NixorPermissions {
     can_create_servers: boolean;
     can_create_rooms: boolean;
     can_manage_servers: boolean;
+    can_manage_server_roles: boolean;
+    can_moderate_servers: boolean;
     managed_space_ids: string[];
+    moderated_space_ids: string[];
 }
 
 interface NixorConfig {
@@ -26,7 +29,10 @@ const DEFAULT_PERMISSIONS: NixorPermissions = {
     can_create_servers: false,
     can_create_rooms: false,
     can_manage_servers: false,
+    can_manage_server_roles: false,
+    can_moderate_servers: false,
     managed_space_ids: [],
+    moderated_space_ids: [],
 };
 
 const CACHE_TTL_MS = 15_000;
@@ -41,6 +47,7 @@ function normalizePermissions(permissions?: Partial<NixorPermissions>): NixorPer
         ...DEFAULT_PERMISSIONS,
         ...permissions,
         managed_space_ids: permissions?.managed_space_ids ?? [],
+        moderated_space_ids: permissions?.moderated_space_ids ?? [],
     };
 }
 
@@ -79,12 +86,7 @@ export async function refreshNixorPermissions(force = false): Promise<NixorPermi
 
     const now = Date.now();
 
-    if (
-        !force &&
-        cachedPermissions &&
-        cachedMatrixUserId === matrixUserId &&
-        now - lastFetchAt < CACHE_TTL_MS
-    ) {
+    if (!force && cachedPermissions && cachedMatrixUserId === matrixUserId && now - lastFetchAt < CACHE_TTL_MS) {
         return cachedPermissions;
     }
 
@@ -126,7 +128,7 @@ export async function refreshNixorPermissions(force = false): Promise<NixorPermi
         .catch((error) => {
             console.warn("Nixor Connect: failed to fetch governance permissions", error);
 
-            cachedPermissions = getDevPermissions(nixorConfig, matrixUserId);
+            cachedPermissions = DEFAULT_PERMISSIONS;
             cachedMatrixUserId = matrixUserId;
             lastFetchAt = Date.now();
 
@@ -180,4 +182,17 @@ export function canManageNixorServer(spaceId?: string | null): boolean {
     if (permissions.can_manage_servers) return true;
 
     return managesSpace(spaceId);
+}
+
+export function canManageNixorServerRoles(): boolean {
+    return getNixorPermissions().can_manage_server_roles;
+}
+
+export function canModerateNixorServer(spaceId?: string | null): boolean {
+    const permissions = getNixorPermissions();
+
+    if (permissions.can_moderate_servers) return true;
+    if (!spaceId) return false;
+
+    return permissions.moderated_space_ids.includes("*") || permissions.moderated_space_ids.includes(spaceId);
 }

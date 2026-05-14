@@ -36,6 +36,7 @@ import { useSettingValue } from "../../../hooks/useSettings";
 import { filterBoolean } from "../../../utils/arrays";
 import { type NonEmptyArray } from "../../../@types/common";
 import { canCreateNixorRoom, canCreateNixorServer } from "../../../nixor/permissions";
+import { isNixorGovernanceEnabled } from "../../../nixor/governanceApi";
 
 // These values match CSS
 const ROW_HEIGHT = 32 + 12;
@@ -456,7 +457,7 @@ const AddExistingToSpaceDialog: React.FC<IProps> = ({ space, onCreateRoomClick, 
     const [selectedSpace, setSelectedSpace] = useState(space);
 
     const canCreateRoomInSpace = canCreateNixorRoom(space.roomId);
-    const canCreateOrAddSubspace = canCreateNixorServer();
+    const canCreateOrAddSubspace = canCreateNixorServer() && !isNixorGovernanceEnabled();
 
     return (
         <BaseDialog

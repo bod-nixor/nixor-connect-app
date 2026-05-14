@@ -22,7 +22,7 @@ import SdkConfig from "../../../SdkConfig";
 import withValidation, { type IFieldState, type IValidationResult } from "../elements/Validation";
 import { _t } from "../../../languageHandler";
 import { MatrixClientPeg } from "../../../MatrixClientPeg";
-import { checkUserIsAllowedToChangeEncryption, type IOpts } from "../../../createRoom";
+import { type IOpts } from "../../../createRoom";
 import Field from "../elements/Field";
 import RoomAliasField from "../elements/RoomAliasField";
 import DialogButtons from "../elements/DialogButtons";
@@ -30,7 +30,6 @@ import BaseDialog from "../dialogs/BaseDialog";
 import JoinRuleDropdown from "../elements/JoinRuleDropdown";
 import { getKeyBindingsManager } from "../../../KeyBindingsManager";
 import { KeyBindingAction } from "../../../accessibility/KeyboardShortcuts";
-import { privateShouldBeEncrypted } from "../../../utils/rooms";
 import SettingsStore from "../../../settings/SettingsStore";
 import { UIFeature } from "../../../settings/UIFeature";
 import { canCreateNixorRoom } from "../../../nixor/permissions";
@@ -120,7 +119,6 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
             joinRule = JoinRule.Restricted;
         }
 
-        const cli = MatrixClientPeg.safeGet();
         this.state = {
             isPublicKnockRoom: defaultPublic || false,
             isEncrypted: false,
@@ -176,15 +174,6 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
     }
 
     public componentDidMount(): void {
-        const cli = MatrixClientPeg.safeGet();
-        checkUserIsAllowedToChangeEncryption(cli, Preset.PrivateChat).then(({ allowChange, forcedValue }) =>
-            this.setState((state) => ({
-                canChangeEncryption: allowChange,
-                // override with forcedValue if it is set
-                isEncrypted: forcedValue ?? state.isEncrypted,
-            })),
-        );
-
         // move focus to first field when showing dialog
         this.nameField.current?.focus();
     }
@@ -246,14 +235,6 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
 
     private onJoinRuleChange = (joinRule: JoinRule): void => {
         this.setState({ joinRule });
-    };
-
-    private onEncryptedChange: ChangeEventHandler<HTMLInputElement> = (evt): void => {
-        this.setState({ isEncrypted: evt.target.checked });
-    };
-
-    private onStateEncryptedChange: ChangeEventHandler<HTMLInputElement> = (evt): void => {
-        this.setState({ isStateEncrypted: evt.target.checked });
     };
 
     private onAliasChange = (alias: string): void => {
@@ -372,35 +353,6 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
             );
         }
 
-        let e2eeSection: JSX.Element | undefined;
-        if (this.state.joinRule !== JoinRule.Public) {
-            let microcopy: string;
-            if (privateShouldBeEncrypted(MatrixClientPeg.safeGet())) {
-                if (this.state.canChangeEncryption) {
-                    microcopy = isVideoRoom
-                        ? _t("create_room|encrypted_video_room_warning")
-                        : _t("create_room|encrypted_warning");
-                } else {
-                    microcopy = _t("create_room|encryption_forced");
-                }
-            } else {
-                microcopy = _t("settings|security|e2ee_default_disabled_warning");
-            }
-        }
-
-        let e2eeStateSection: JSX.Element | undefined;
-        if (
-            SettingsStore.getValue("feature_msc4362_encrypted_state_events", null, false) &&
-            this.state.joinRule !== JoinRule.Public
-        ) {
-            let microcopy: string;
-            if (!this.state.canChangeEncryption) {
-                microcopy = _t("create_room|encryption_forced");
-            } else {
-                microcopy = _t("create_room|state_encrypted_warning");
-            }
-        }
-
         let federateLabel = _t("create_room|unfederated_label_default_off");
         if (SdkConfig.get().default_federate === false) {
             // We only change the label if the default setting is different to avoid jarring text changes to the
@@ -463,8 +415,6 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
                         </div>
 
                         {visibilitySection}
-                        {e2eeSection}
-                        {e2eeStateSection}
                         {aliasField}
                         {this.advancedSettingsEnabled && (
                             <details onToggle={this.onDetailsToggled} className="mx_CreateRoomDialog_details">

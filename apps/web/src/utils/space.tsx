@@ -100,10 +100,7 @@ export const showCreateNewRoom = async (space: Room, type?: RoomType): Promise<b
 
         const server = await getServerBySpaceId(space.roomId);
 
-        const visibility =
-            opts.createOpts?.visibility === Visibility.Public
-                ? "public"
-                : "private";
+        const visibility = opts.createOpts?.visibility === Visibility.Public ? "public" : "private";
 
         const channel = await createGovernanceChannel(server.public_id, {
             requester_matrix_user_id: requesterMatrixUserId,
@@ -162,6 +159,10 @@ export const showSpaceInvite = (space: Room, initialText = ""): void => {
 };
 
 export const showAddExistingSubspace = (space: Room): void => {
+    if (isNixorGovernanceEnabled()) {
+        return;
+    }
+
     if (!canCreateNixorServer()) {
         return;
     }
