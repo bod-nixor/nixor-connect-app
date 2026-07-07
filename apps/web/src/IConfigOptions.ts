@@ -24,8 +24,26 @@ import { type ValidatedServerConfig } from "./utils/ValidatedServerConfig";
 export const BugReportEndpointURLLocal = "local";
 
 // see element-web config.md for non-developer docs
+export interface NixorConfigPermissions {
+    can_create_servers: boolean;
+    can_create_rooms: boolean;
+    can_manage_servers: boolean;
+    can_manage_server_roles: boolean;
+    can_moderate_servers: boolean;
+    managed_space_ids: string[];
+    moderated_space_ids: string[];
+}
+
+export interface NixorConfigOptions {
+    governance_api_base_url?: string;
+    governance_enabled?: boolean;
+    dev_governance_api_token?: string;
+    dev_permissions?: Partial<NixorConfigPermissions>;
+    dev_permissions_by_user?: Record<string, Partial<NixorConfigPermissions>>;
+}
+
 export interface IConfigOptions {
-    nixor: { governance_enabled?: boolean | undefined; dev_permissions?: Partial<Permissions> | undefined; } | undefined;
+    nixor?: NixorConfigOptions;
     // dev note: while true that this is arbitrary JSON, it's valuable to enforce that all
     // config options are documented for "find all usages" sort of searching.
     // [key: string]: any;
