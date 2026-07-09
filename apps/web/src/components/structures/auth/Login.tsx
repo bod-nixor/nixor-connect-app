@@ -19,7 +19,6 @@ import AutoDiscoveryUtils from "../../../utils/AutoDiscoveryUtils";
 import AuthPage from "../../views/auth/AuthPage";
 import PlatformPeg from "../../../PlatformPeg";
 import SettingsStore from "../../../settings/SettingsStore";
-import SdkConfig from "../../../SdkConfig";
 import { UIFeature } from "../../../settings/UIFeature";
 import { type IMatrixClientCreds } from "../../../MatrixClientPeg";
 import PasswordLogin from "../../views/auth/PasswordLogin";
@@ -33,44 +32,12 @@ import AccessibleButton, { type ButtonEvent } from "../../views/elements/Accessi
 import { type ValidatedServerConfig } from "../../../utils/ValidatedServerConfig";
 import { filterBoolean } from "../../../utils/arrays";
 import { startOidcLogin } from "../../../utils/oidc/authorize";
-import { ModuleApi } from "../../../modules/Api.ts";
-
-function getNixorConnectApiBaseUrl(): string {
-    const nixorConfig = SdkConfig.get()?.nixor;
-    return (
-        nixorConfig?.connect_api_base_url ||
-        nixorConfig?.governance_api_base_url ||
-        "https://connect-api.nixorcorporate.com"
-    ).replace(/\/$/, "");
-}
-
-function getNixorSsoErrorText(): string | null {
-    const queryError = new URLSearchParams(window.location.search).get("nixor_sso_error");
-    const storedError = sessionStorage.getItem("nixor_sso_error");
-    const error = queryError || storedError;
-
-    if (!error) {
-        return null;
-    }
-
-    if (error === "not_allowed") {
-        return "Your Google account is not approved for Nixor Connect access.";
-    }
-
-    if (error === "unverified_email") {
-        return "Google did not return a verified email address.";
-    }
-
-    if (error === "invalid_state") {
-        return "The Google sign-in session expired. Please try again.";
-    }
-
-    if (error === "entitlement_sync_failed") {
-        return "Your Nixor Connect access exists, but your Matrix memberships could not be synced. Please contact support.";
-    }
-
-    return "Google sign-in failed. Please try again.";
-}
+import {
+    clearStoredNixorSsoError,
+    getNixorConnectApiBaseUrl,
+    getNixorSsoErrorText,
+    isNixorGoogleSsoEnabled,
+} from "../../../nixor/sso";
 
 interface IProps {
     serverConfig: ValidatedServerConfig;
@@ -345,14 +312,12 @@ class LoginComponent extends React.PureComponent<IProps, IState> {
     };
 
     private onNixorGoogleLoginClick = (): void => {
-        sessionStorage.removeItem("nixor_sso_error");
+        clearStoredNixorSsoError();
         window.location.href = `${getNixorConnectApiBaseUrl()}/auth/google/start`;
     };
 
     private renderNixorGoogleSsoStep = (): React.ReactNode => {
-        const nixorConfig = SdkConfig.get()?.nixor;
-
-        if (nixorConfig?.google_sso_enabled === false) {
+        if (!isNixorGoogleSsoEnabled()) {
             return null;
         }
 
@@ -617,7 +582,7 @@ class LoginComponent extends React.PureComponent<IProps, IState> {
 }
 
 const WrappedLoginComponent = memo((props: IProps): JSX.Element => {
-    const moduleRenderer = ModuleApi.instance.customComponents.loginComponentRenderer;
+    const moduleRenderer = window.mxModuleApi?.customComponents.loginComponentRenderer;
     if (moduleRenderer) {
         return moduleRenderer(props, (props) => <LoginComponent {...props} />);
     }

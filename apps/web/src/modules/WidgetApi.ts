@@ -9,9 +9,30 @@ import { type Container, type WidgetApi as WidgetApiInterface } from "@element-h
 import { getHttpUriForMxc } from "matrix-js-sdk/src/matrix";
 
 import type { IWidget } from "matrix-widget-api";
-import WidgetStore, { isAppWidget } from "../stores/WidgetStore";
-import { MatrixClientPeg } from "../MatrixClientPeg";
-import { WidgetLayoutStore } from "../stores/widgets/WidgetLayoutStore";
+import type WidgetStoreType from "../stores/WidgetStore";
+import type { IApp } from "../stores/WidgetStore";
+import type { MatrixClientPeg as MatrixClientPegType } from "../MatrixClientPeg";
+import type { WidgetLayoutStore as WidgetLayoutStoreType } from "../stores/widgets/WidgetLayoutStore";
+
+function getWidgetStore(): typeof WidgetStoreType {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require("../stores/WidgetStore").default;
+}
+
+function isAppWidget(widget: IWidget): widget is IApp {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require("../stores/WidgetStore").isAppWidget(widget);
+}
+
+function getMatrixClientPeg(): typeof MatrixClientPegType {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require("../MatrixClientPeg").MatrixClientPeg;
+}
+
+function getWidgetLayoutStore(): typeof WidgetLayoutStoreType {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require("../stores/widgets/WidgetLayoutStore").WidgetLayoutStore;
+}
 
 /**
  * Host-side implementation of the widget API.
@@ -19,13 +40,13 @@ import { WidgetLayoutStore } from "../stores/widgets/WidgetLayoutStore";
  */
 export class WidgetApi implements WidgetApiInterface {
     public getWidgetsInRoom(roomId: string): IWidget[] {
-        return WidgetStore.instance.getApps(roomId);
+        return getWidgetStore().instance.getApps(roomId);
     }
 
     public getAppAvatarUrl(app: IWidget, width?: number, height?: number, resizeMethod?: string): string | null {
         if (!isAppWidget(app) || !app.avatar_url) return null;
         return getHttpUriForMxc(
-            MatrixClientPeg.safeGet().getHomeserverUrl(),
+            getMatrixClientPeg().safeGet().getHomeserverUrl(),
             app.avatar_url,
             width,
             height,
@@ -34,14 +55,14 @@ export class WidgetApi implements WidgetApiInterface {
     }
 
     public isAppInContainer(app: IWidget, container: Container, roomId: string): boolean {
-        const room = MatrixClientPeg.safeGet().getRoom(roomId);
+        const room = getMatrixClientPeg().safeGet().getRoom(roomId);
         if (!room) return false;
-        return WidgetLayoutStore.instance.isInContainer(room, app, container);
+        return getWidgetLayoutStore().instance.isInContainer(room, app, container);
     }
 
     public moveAppToContainer(app: IWidget, container: Container, roomId: string): void {
-        const room = MatrixClientPeg.safeGet().getRoom(roomId);
+        const room = getMatrixClientPeg().safeGet().getRoom(roomId);
         if (!room) return;
-        WidgetLayoutStore.instance.moveToContainer(room, app, container);
+        getWidgetLayoutStore().instance.moveToContainer(room, app, container);
     }
 }

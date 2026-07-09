@@ -515,4 +515,7 @@ export class WidgetLayoutStore extends ReadyWatchingStore {
     }
 }
 
-window.mxWidgetLayoutStore = WidgetLayoutStore.instance;
+Object.defineProperty(window, "mxWidgetLayoutStore", {
+    configurable: true,
+    get: () => WidgetLayoutStore.instance,
+});

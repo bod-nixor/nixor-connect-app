@@ -9,7 +9,6 @@ import EventEmitter from "events";
 import { type MatrixEvent, RoomStateEvent, type RoomState } from "matrix-js-sdk/src/matrix";
 
 import { MatrixClientPeg } from "../MatrixClientPeg";
-import WidgetUtils from "../utils/WidgetUtils";
 import { WidgetMessagingStore } from "./widgets/WidgetMessagingStore";
 
 export enum ActiveWidgetStoreEvent {
@@ -18,6 +17,10 @@ export enum ActiveWidgetStoreEvent {
     // Indicate changes in the currently docked widgets
     Dock = "dock",
     Undock = "undock",
+}
+
+function calcWidgetUid(widgetId: string, roomId?: string): string {
+    return roomId ? `room_${roomId}_${widgetId}` : `user_${widgetId}`;
 }
 
 /**
@@ -66,7 +69,7 @@ export default class ActiveWidgetStore extends EventEmitter {
         // Then we can stop the messaging. Stopping the messaging emits - we might move the widget out of sight.
         // If we would do this before setting the persistence to false, it would stay in the DOM (hidden) because
         // its still persistent. We need to avoid this.
-        WidgetMessagingStore.instance.stopMessagingByUid(WidgetUtils.calcWidgetUid(widgetId, roomId ?? undefined));
+        WidgetMessagingStore.instance.stopMessagingByUid(calcWidgetUid(widgetId, roomId ?? undefined));
     }
 
     public setWidgetPersistence(widgetId: string, roomId: string | null, val: boolean): void {
@@ -97,14 +100,14 @@ export default class ActiveWidgetStore extends EventEmitter {
     // Registers the given widget as being docked somewhere in the UI (not a PiP),
     // to allow its lifecycle to be tracked.
     public dockWidget(widgetId: string, roomId: string | null): void {
-        const uid = WidgetUtils.calcWidgetUid(widgetId, roomId ?? undefined);
+        const uid = calcWidgetUid(widgetId, roomId ?? undefined);
         const refs = this.dockedWidgetsByUid.get(uid) ?? 0;
         this.dockedWidgetsByUid.set(uid, refs + 1);
         if (refs === 0) this.emit(ActiveWidgetStoreEvent.Dock);
     }
 
     public undockWidget(widgetId: string, roomId: string | null): void {
-        const uid = WidgetUtils.calcWidgetUid(widgetId, roomId ?? undefined);
+        const uid = calcWidgetUid(widgetId, roomId ?? undefined);
         const refs = this.dockedWidgetsByUid.get(uid);
         if (refs) this.dockedWidgetsByUid.set(uid, refs - 1);
         if (refs === 1) this.emit(ActiveWidgetStoreEvent.Undock);
@@ -112,7 +115,7 @@ export default class ActiveWidgetStore extends EventEmitter {
 
     // Determines whether the given widget is docked anywhere in the UI (not a PiP)
     public isDocked(widgetId: string, roomId: string | null): boolean {
-        const uid = WidgetUtils.calcWidgetUid(widgetId, roomId ?? undefined);
+        const uid = calcWidgetUid(widgetId, roomId ?? undefined);
         const refs = this.dockedWidgetsByUid.get(uid) ?? 0;
         return refs > 0;
     }
@@ -123,4 +126,7 @@ export default class ActiveWidgetStore extends EventEmitter {
     }
 }
 
-window.mxActiveWidgetStore = ActiveWidgetStore.instance;
+Object.defineProperty(window, "mxActiveWidgetStore", {
+    configurable: true,
+    get: () => ActiveWidgetStore.instance,
+});

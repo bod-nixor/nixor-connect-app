@@ -179,6 +179,33 @@ describe("Lifecycle", () => {
         });
     });
 
+    describe("attemptDelegatedAuthLogin()", () => {
+        beforeEach(() => {
+            fetchMock.get("https://connect-api.nixorcorporate.com/auth/session", {
+                ok: true,
+                matrix_user_id: userId,
+                matrix_access_token: accessToken,
+                matrix_device_id: deviceId,
+                homeserver_url: homeserverUrl,
+            });
+        });
+
+        it("does not exchange a Nixor Connect session without nixor_sso=1", async () => {
+            await expect(Lifecycle.attemptDelegatedAuthLogin({})).resolves.toBe(false);
+
+            expect(fetchMock).not.toHaveFetched("https://connect-api.nixorcorporate.com/auth/session");
+        });
+
+        it("stores a safe Nixor SSO error without exchanging a session", async () => {
+            await expect(
+                Lifecycle.attemptDelegatedAuthLogin({ nixor_sso: { nixor_sso_error: "not_allowed" } }),
+            ).resolves.toBe(false);
+
+            expect(sessionStorage.getItem("nixor_sso_error")).toEqual("not_allowed");
+            expect(fetchMock).not.toHaveFetched("https://connect-api.nixorcorporate.com/auth/session");
+        });
+    });
+
     describe("restoreSessionFromStorage()", () => {
         beforeEach(() => {
             initIdbMock();

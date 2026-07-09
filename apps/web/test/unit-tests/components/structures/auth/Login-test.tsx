@@ -138,6 +138,31 @@ describe("Login", function () {
         expect(container.querySelectorAll(".mx_ServerPicker_change")).toHaveLength(0);
     });
 
+    it("should show Nixor Google SSO button", async () => {
+        getComponent();
+        await waitForElementToBeRemoved(() => screen.queryAllByLabelText("Loading…"));
+
+        expect(screen.getByRole("button", { name: "Continue with Google" })).toBeInTheDocument();
+    });
+
+    it("should start Nixor Google SSO using the configured Connect API base URL", async () => {
+        SdkConfig.put({
+            brand: "test-brand",
+            disable_custom_urls: true,
+            nixor: {
+                connect_api_base_url: "https://connect-api.example.org/",
+            },
+        });
+        const hrefSetter = jest.spyOn(window.location, "href", "set");
+
+        getComponent();
+        await waitForElementToBeRemoved(() => screen.queryAllByLabelText("Loading…"));
+
+        fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+
+        expect(hrefSetter).toHaveBeenCalledWith("https://connect-api.example.org/auth/google/start");
+    });
+
     it("should show SSO button if that flow is available", async () => {
         mockClient.loginFlows.mockResolvedValue({ flows: [{ type: "m.login.sso" }] });
 

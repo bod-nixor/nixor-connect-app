@@ -81,6 +81,7 @@ import {
 import { TokenRefresher } from "./utils/oidc/TokenRefresher";
 import { checkBrowserSupport } from "./SupportedBrowser";
 import { type URLParams } from "./vector/url_utils.ts";
+import { getNixorConnectApiBaseUrl, storeNixorSsoError } from "./nixor/sso";
 
 const HOMESERVER_URL_KEY = "mx_hs_url";
 const ID_SERVER_URL_KEY = "mx_is_url";
@@ -278,7 +279,7 @@ export async function attemptDelegatedAuthLogin(
     fragmentAfterLogin?: string,
 ): Promise<boolean> {
     if (urlParams.nixor_sso?.nixor_sso_error) {
-        sessionStorage.setItem("nixor_sso_error", urlParams.nixor_sso.nixor_sso_error);
+        storeNixorSsoError(urlParams.nixor_sso.nixor_sso_error);
         return false;
     }
 
@@ -302,15 +303,6 @@ interface NixorConnectSessionResponse {
     matrix_device_id?: string;
     homeserver_url?: string;
     error?: string;
-}
-
-function getNixorConnectApiBaseUrl(): string {
-    const nixorConfig = SdkConfig.get()?.nixor;
-    return (
-        nixorConfig?.connect_api_base_url ||
-        nixorConfig?.governance_api_base_url ||
-        "https://connect-api.nixorcorporate.com"
-    ).replace(/\/$/, "");
 }
 
 async function attemptNixorConnectLogin(): Promise<boolean> {

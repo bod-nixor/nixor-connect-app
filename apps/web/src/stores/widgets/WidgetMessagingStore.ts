@@ -13,12 +13,15 @@ import { AsyncStoreWithClient } from "../AsyncStoreWithClient";
 import defaultDispatcher from "../../dispatcher/dispatcher";
 import { type ActionPayload } from "../../dispatcher/payloads";
 import { EnhancedMap } from "../../utils/maps";
-import WidgetUtils from "../../utils/WidgetUtils";
 import { type WidgetMessaging } from "./WidgetMessaging";
 
 export enum WidgetMessagingStoreEvent {
     StoreMessaging = "store_messaging",
     StopMessaging = "stop_messaging",
+}
+
+function calcWidgetUid(widgetId: string, roomId?: string): string {
+    return roomId ? `room_${roomId}_${widgetId}` : `user_${widgetId}`;
 }
 
 /**
@@ -27,11 +30,7 @@ export enum WidgetMessagingStoreEvent {
  * easiest to split this into a single place.
  */
 export class WidgetMessagingStore extends AsyncStoreWithClient<EmptyObject> {
-    private static readonly internalInstance = (() => {
-        const instance = new WidgetMessagingStore();
-        instance.start();
-        return instance;
-    })();
+    private static internalInstance?: WidgetMessagingStore;
 
     private widgetMap = new EnhancedMap<string, WidgetMessaging>(); // <widget UID, messaging>
 
@@ -40,6 +39,10 @@ export class WidgetMessagingStore extends AsyncStoreWithClient<EmptyObject> {
     }
 
     public static get instance(): WidgetMessagingStore {
+        if (!WidgetMessagingStore.internalInstance) {
+            WidgetMessagingStore.internalInstance = new WidgetMessagingStore();
+            void WidgetMessagingStore.internalInstance.start();
+        }
         return WidgetMessagingStore.internalInstance;
     }
 
@@ -54,18 +57,18 @@ export class WidgetMessagingStore extends AsyncStoreWithClient<EmptyObject> {
 
     public storeMessaging(widget: Widget, roomId: string | undefined, messaging: WidgetMessaging): void {
         this.stopMessaging(widget, roomId);
-        const uid = WidgetUtils.calcWidgetUid(widget.id, roomId);
+        const uid = calcWidgetUid(widget.id, roomId);
         this.widgetMap.set(uid, messaging);
 
         this.emit(WidgetMessagingStoreEvent.StoreMessaging, uid, messaging);
     }
 
     public stopMessaging(widget: Widget, roomId: string | undefined): void {
-        this.stopMessagingByUid(WidgetUtils.calcWidgetUid(widget.id, roomId));
+        this.stopMessagingByUid(calcWidgetUid(widget.id, roomId));
     }
 
     public getMessaging(widget: Widget, roomId: string | undefined): WidgetMessaging | undefined {
-        return this.widgetMap.get(WidgetUtils.calcWidgetUid(widget.id, roomId));
+        return this.widgetMap.get(calcWidgetUid(widget.id, roomId));
     }
 
     /**

@@ -35,11 +35,7 @@ interface IRoomWidgets {
 // TODO consolidate WidgetEchoStore into this
 // TODO consolidate ActiveWidgetStore into this
 export default class WidgetStore extends AsyncStoreWithClient<EmptyObject> {
-    private static readonly internalInstance = (() => {
-        const instance = new WidgetStore();
-        instance.start();
-        return instance;
-    })();
+    private static internalInstance?: WidgetStore;
 
     private widgetMap = new Map<string, IApp>(); // Key is widget Unique ID (UID)
     private roomMap = new Map<string, IRoomWidgets>(); // Key is room ID
@@ -51,6 +47,10 @@ export default class WidgetStore extends AsyncStoreWithClient<EmptyObject> {
     }
 
     public static get instance(): WidgetStore {
+        if (!WidgetStore.internalInstance) {
+            WidgetStore.internalInstance = new WidgetStore();
+            void WidgetStore.internalInstance.start();
+        }
         return WidgetStore.internalInstance;
     }
 
@@ -203,4 +203,7 @@ export default class WidgetStore extends AsyncStoreWithClient<EmptyObject> {
     }
 }
 
-window.mxWidgetStore = WidgetStore.instance;
+Object.defineProperty(window, "mxWidgetStore", {
+    configurable: true,
+    get: () => WidgetStore.instance,
+});
