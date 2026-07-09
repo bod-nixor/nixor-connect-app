@@ -37,6 +37,8 @@ export interface NixorConfigPermissions {
 export interface NixorConfigOptions {
     governance_api_base_url?: string;
     governance_enabled?: boolean;
+    connect_api_base_url?: string;
+    google_sso_enabled?: boolean;
     dev_governance_api_token?: string;
     dev_permissions?: Partial<NixorConfigPermissions>;
     dev_permissions_by_user?: Record<string, Partial<NixorConfigPermissions>>;
