@@ -57,6 +57,18 @@ describe("parseUrlParameters", () => {
         expect(parsed.params.oidc_query?.state).toEqual("barfoo");
     });
 
+    it("should parse Nixor Google SSO callback parameters from query", () => {
+        const u = new URL("https://connect.nixorcorporate.com/?nixor_sso=1");
+        const parsed = parseAppUrl(u);
+        expect(parsed.params.nixor_sso?.nixor_sso).toEqual("1");
+    });
+
+    it("should parse Nixor Google SSO error parameters from query", () => {
+        const u = new URL("https://connect.nixorcorporate.com/?nixor_sso_error=not_allowed");
+        const parsed = parseAppUrl(u);
+        expect(parsed.params.nixor_sso?.nixor_sso_error).toEqual("not_allowed");
+    });
+
     it("should parse guest parameters", () => {
         const u = new URL("https://app.element.io?foo=bar#/room/!roomId:server?guest_access_token=foobar");
         const parsed = parseAppUrl(u);

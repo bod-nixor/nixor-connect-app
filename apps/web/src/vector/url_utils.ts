@@ -64,6 +64,11 @@ const urlParameterConfig = {
         keys: ["code", "state"],
         location: "query",
     },
+    // Query params set by Panapticon after Nixor Google SSO completes
+    nixor_sso: {
+        keys: ["nixor_sso", "nixor_sso_error"],
+        location: "query",
+    },
     // Fragment params relating to 3pid (email) invites, added in url within the invite email itself
     threepid: {
         keys: ["client_secret", "session_id", "hs_url", "is_url", "sid"],

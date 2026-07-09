@@ -10,6 +10,8 @@
     },
     "nixor": {
         "governance_api_base_url": "https://governance-api.example.com",
+        "connect_api_base_url": "https://connect-api.nixorcorporate.com",
+        "google_sso_enabled": true,
         "governance_enabled": false,
         "dev_governance_api_token": "",
         "dev_permissions": {

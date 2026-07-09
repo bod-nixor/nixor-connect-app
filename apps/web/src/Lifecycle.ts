@@ -277,6 +277,15 @@ export async function attemptDelegatedAuthLogin(
     defaultDeviceDisplayName?: string,
     fragmentAfterLogin?: string,
 ): Promise<boolean> {
+    if (urlParams.nixor_sso?.nixor_sso_error) {
+        sessionStorage.setItem("nixor_sso_error", urlParams.nixor_sso.nixor_sso_error);
+        return false;
+    }
+
+    if (urlParams.nixor_sso?.nixor_sso === "1") {
+        return attemptNixorConnectLogin();
+    }
+
     if (urlParams.oidc_fragment) {
         return attemptOidcNativeLogin(urlParams.oidc_fragment, "fragment");
     } else if (urlParams.oidc_query) {
@@ -284,6 +293,61 @@ export async function attemptDelegatedAuthLogin(
     }
 
     return attemptTokenLogin(urlParams["legacy_sso"], defaultDeviceDisplayName, fragmentAfterLogin);
+}
+
+interface NixorConnectSessionResponse {
+    ok?: boolean;
+    matrix_user_id?: string;
+    matrix_access_token?: string;
+    matrix_device_id?: string;
+    homeserver_url?: string;
+    error?: string;
+}
+
+function getNixorConnectApiBaseUrl(): string {
+    const nixorConfig = SdkConfig.get()?.nixor;
+    return (
+        nixorConfig?.connect_api_base_url ||
+        nixorConfig?.governance_api_base_url ||
+        "https://connect-api.nixorcorporate.com"
+    ).replace(/\/$/, "");
+}
+
+async function attemptNixorConnectLogin(): Promise<boolean> {
+    logger.log("We have Nixor Google SSO params - attempting Connect session login");
+
+    try {
+        const response = await fetch(`${getNixorConnectApiBaseUrl()}/auth/session`, {
+            method: "GET",
+            credentials: "include",
+        });
+        const body = (await response.json().catch(() => ({}))) as NixorConnectSessionResponse;
+
+        if (
+            !response.ok ||
+            body.ok !== true ||
+            typeof body.matrix_user_id !== "string" ||
+            typeof body.matrix_access_token !== "string" ||
+            typeof body.homeserver_url !== "string"
+        ) {
+            throw new Error(body.error || `Nixor Connect session exchange failed: ${response.status}`);
+        }
+
+        await onSuccessfulDelegatedAuthLogin({
+            userId: body.matrix_user_id,
+            accessToken: body.matrix_access_token,
+            deviceId: body.matrix_device_id,
+            homeserverUrl: body.homeserver_url,
+            identityServerUrl: SdkConfig.get("validated_server_config")?.isUrl,
+            guest: false,
+        });
+
+        return true;
+    } catch (error) {
+        logger.error("Failed to log in with Nixor Google SSO", error);
+        onFailedDelegatedAuthLogin("Nixor Connect sign-in failed. Please try again.");
+        return false;
+    }
 }
 
 /**
