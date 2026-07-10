@@ -305,6 +305,41 @@ interface NixorConnectSessionResponse {
     error?: string;
 }
 
+class NixorConnectSecureSessionError extends Error {}
+
+const NIXOR_CONNECT_DEVICE_SESSION_ERROR =
+    "Nixor Connect could not create a secure Matrix device session. Please try again.";
+
+function isNonEmptyString(value: unknown): value is string {
+    return typeof value === "string" && value.trim().length > 0;
+}
+
+function isValidUrlString(value: string): boolean {
+    try {
+        new URL(value);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+function assertCompleteAuthenticatedCredentials(credentials: IMatrixClientCreds): void {
+    if (!credentials.guest && !isNonEmptyString(credentials.deviceId)) {
+        throw new Error("Cannot start authenticated Matrix session without a device ID");
+    }
+}
+
+async function logoutInvalidNixorConnectSession(): Promise<void> {
+    try {
+        await fetch(`${getNixorConnectApiBaseUrl()}/auth/logout`, {
+            method: "POST",
+            credentials: "include",
+        });
+    } catch (error) {
+        logger.warn("Failed to clear invalid Nixor Connect session", error);
+    }
+}
+
 async function attemptNixorConnectLogin(): Promise<boolean> {
     logger.log("We have Nixor Google SSO params - attempting Connect session login");
 
@@ -318,10 +353,17 @@ async function attemptNixorConnectLogin(): Promise<boolean> {
         if (
             !response.ok ||
             body.ok !== true ||
-            typeof body.matrix_user_id !== "string" ||
-            typeof body.matrix_access_token !== "string" ||
-            typeof body.homeserver_url !== "string"
+            !isNonEmptyString(body.matrix_user_id) ||
+            !isNonEmptyString(body.matrix_access_token) ||
+            !isNonEmptyString(body.matrix_device_id) ||
+            !isNonEmptyString(body.homeserver_url) ||
+            !isValidUrlString(body.homeserver_url)
         ) {
+            if (response.ok && body.ok === true) {
+                await logoutInvalidNixorConnectSession();
+                throw new NixorConnectSecureSessionError(NIXOR_CONNECT_DEVICE_SESSION_ERROR);
+            }
+
             throw new Error(body.error || `Nixor Connect session exchange failed: ${response.status}`);
         }
 
@@ -337,7 +379,11 @@ async function attemptNixorConnectLogin(): Promise<boolean> {
         return true;
     } catch (error) {
         logger.error("Failed to log in with Nixor Google SSO", error);
-        onFailedDelegatedAuthLogin("Nixor Connect sign-in failed. Please try again.");
+        onFailedDelegatedAuthLogin(
+            error instanceof NixorConnectSecureSessionError
+                ? NIXOR_CONNECT_DEVICE_SESSION_ERROR
+                : "Nixor Connect sign-in failed. Please try again.",
+        );
         return false;
     }
 }
@@ -511,6 +557,7 @@ async function loadOrCreatePickleKey(credentials: IMatrixClientCreds): Promise<s
  * @param credentials as returned from login
  */
 async function onSuccessfulDelegatedAuthLogin(credentials: IMatrixClientCreds): Promise<void> {
+    assertCompleteAuthenticatedCredentials(credentials);
     await clearStorage();
     // SSO does not go through setLoggedIn so we need to load/create the pickle key here too
     credentials.pickleKey = await loadOrCreatePickleKey(credentials);
@@ -695,6 +742,14 @@ export async function restoreSessionFromStorage(opts?: { ignoreGuest?: boolean }
             return false;
         }
 
+        if (!isGuest && !isNonEmptyString(deviceId)) {
+            logger.warn("restoreSessionFromStorage: stored authenticated session is missing a device ID; clearing storage.");
+            await clearStorage();
+            throw new AbortLoginAndRebuildStorage(
+                "Aborting login because stored authenticated session is missing a device ID",
+            );
+        }
+
         const pickleKey = (await PlatformPeg.get()?.getPickleKey(userId, deviceId ?? "")) ?? undefined;
         if (pickleKey) {
             logger.log(`Got pickle key for ${userId}|${deviceId}`);
@@ -867,6 +922,7 @@ async function doSetLoggedIn(
 ): Promise<MatrixClient> {
     checkSessionLock();
     credentials.guest = Boolean(credentials.guest);
+    assertCompleteAuthenticatedCredentials(credentials);
 
     const softLogout = isSoftLogout();
 
@@ -977,6 +1033,7 @@ async function showStorageEvictedDialog(): Promise<boolean> {
 class AbortLoginAndRebuildStorage extends Error {}
 
 async function persistCredentials(credentials: IMatrixClientCreds): Promise<void> {
+    assertCompleteAuthenticatedCredentials(credentials);
     localStorage.setItem(HOMESERVER_URL_KEY, credentials.homeserverUrl);
     if (credentials.identityServerUrl) {
         localStorage.setItem(ID_SERVER_URL_KEY, credentials.identityServerUrl);

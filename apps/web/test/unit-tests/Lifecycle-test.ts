@@ -181,6 +181,14 @@ describe("Lifecycle", () => {
 
     describe("attemptDelegatedAuthLogin()", () => {
         beforeEach(() => {
+            fetchMock.removeRoutes();
+            fetchMock.clearHistory();
+            initIdbMock();
+            jest.spyOn(MatrixJs, "createClient").mockReturnValue(mockClient);
+            jest.spyOn(Modal, "createDialog").mockReturnValue(
+                // @ts-ignore allow bad mock
+                { finished: Promise.resolve([false]) },
+            );
             fetchMock.get("https://connect-api.nixorcorporate.com/auth/session", {
                 ok: true,
                 matrix_user_id: userId,
@@ -203,6 +211,42 @@ describe("Lifecycle", () => {
 
             expect(sessionStorage.getItem("nixor_sso_error")).toEqual("not_allowed");
             expect(fetchMock).not.toHaveFetched("https://connect-api.nixorcorporate.com/auth/session");
+        });
+
+        it("rejects a Nixor Connect session without matrix_device_id and asks the backend to clear it", async () => {
+            fetchMock.removeRoutes();
+            fetchMock.get("https://connect-api.nixorcorporate.com/auth/session", {
+                ok: true,
+                matrix_user_id: userId,
+                matrix_access_token: accessToken,
+                homeserver_url: homeserverUrl,
+            });
+            fetchMock.post("https://connect-api.nixorcorporate.com/auth/logout", { ok: true });
+
+            await expect(
+                Lifecycle.attemptDelegatedAuthLogin({ nixor_sso: { nixor_sso: "1" } }),
+            ).resolves.toBe(false);
+
+            expect(MatrixClientPeg.replaceUsingCreds).not.toHaveBeenCalled();
+            expect(localStorage.getItem("mx_user_id")).toBeNull();
+            expect(localStorage.getItem("mx_has_access_token")).toBeNull();
+            expect(localStorage.getItem("mx_device_id")).toBeNull();
+            expect(StorageAccess.idbSave).not.toHaveBeenCalledWith("account", "mx_access_token", expect.anything());
+            expect(fetchMock).toHaveFetched("https://connect-api.nixorcorporate.com/auth/logout", {
+                method: "POST",
+            });
+        });
+
+        it("persists a valid Nixor Connect session with matrix_device_id for restoration", async () => {
+            await expect(
+                Lifecycle.attemptDelegatedAuthLogin({ nixor_sso: { nixor_sso: "1" } }),
+            ).resolves.toBe(true);
+
+            expect(localStorage.getItem("mx_user_id")).toEqual(userId);
+            expect(localStorage.getItem("mx_has_access_token")).toEqual("true");
+            expect(localStorage.getItem("mx_device_id")).toEqual(deviceId);
+            expect(StorageAccess.idbSave).toHaveBeenCalledWith("account", "mx_access_token", expect.anything());
+            expect(fetchMock).not.toHaveFetched("https://connect-api.nixorcorporate.com/auth/logout");
         });
     });
 
@@ -321,6 +365,21 @@ describe("Lifecycle", () => {
                     );
 
                     expect(MatrixClientPeg.start).toHaveBeenCalledWith({});
+                });
+
+                it("should clear a non-guest authenticated session with an access token but no device ID before starting the client", async () => {
+                    localStorage.removeItem("mx_device_id");
+                    initIdbMock({ account: { mx_access_token: accessToken } });
+
+                    await expect(restoreSessionFromStorage()).rejects.toThrow(
+                        "stored authenticated session is missing a device ID",
+                    );
+
+                    expect(MatrixClientPeg.replaceUsingCreds).not.toHaveBeenCalled();
+                    expect(MatrixClientPeg.start).not.toHaveBeenCalled();
+                    expect(localStorage.getItem("mx_user_id")).toBeNull();
+                    expect(localStorage.getItem("mx_has_access_token")).toBeNull();
+                    expect(mockClient.clearStores).toHaveBeenCalled();
                 });
 
                 it("should remove fresh login flag from session storage", async () => {
@@ -711,14 +770,13 @@ describe("Lifecycle", () => {
         });
 
         describe("with a pickle key", () => {
-            it("should not create a pickle key when credentials do not include deviceId", async () => {
-                await setLoggedIn({
+            it("should reject non-guest credentials that do not include deviceId", async () => {
+                await expect(setLoggedIn({
                     ...credentials,
                     deviceId: undefined,
-                });
+                })).rejects.toThrow("Cannot start authenticated Matrix session without a device ID");
 
-                // unpickled access token saved
-                expect(StorageAccess.idbSave).toHaveBeenCalledWith("account", "mx_access_token", accessToken);
+                expect(StorageAccess.idbSave).not.toHaveBeenCalledWith("account", "mx_access_token", accessToken);
                 expect(mockPlatform.createPickleKey).not.toHaveBeenCalled();
             });
 
@@ -850,7 +908,7 @@ describe("Lifecycle", () => {
                         refreshToken,
                         deviceId: undefined,
                     }),
-                ).rejects.toThrow("Expected deviceId in user credentials.");
+                ).rejects.toThrow("Cannot start authenticated Matrix session without a device ID");
 
                 // didn't try to initialise token refresher
                 expect(fetchMock).toHaveFetchedTimes(
