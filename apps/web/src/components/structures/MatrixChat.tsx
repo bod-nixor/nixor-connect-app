@@ -143,6 +143,8 @@ import { ModuleApi } from "../../modules/Api.ts";
 import { type IScreen } from "../../vector/routing.ts";
 import { type URLParams } from "../../vector/url_utils.ts";
 import { canCreateNixorRoom, refreshNixorPermissions } from "../../nixor/permissions";
+import { getNixorOnboardingStatus, type NixorOnboardingStatus } from "../../nixor/onboarding";
+import NixorOnboardingDialog from "../views/dialogs/NixorOnboardingDialog";
 
 // legacy export
 export { default as Views } from "../../Views";
@@ -250,6 +252,7 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
     private loadSessionAbortController = new AbortController();
 
     private sessionLoadStarted = false;
+    private nixorOnboardingChecked = false;
 
     public constructor(props: IProps) {
         super(props);
@@ -1472,6 +1475,55 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
                     priority: 100,
                 });
             }
+        }
+
+        void this.maybeShowNixorOnboarding();
+    }
+
+    private routeToNixorLanding(status: NixorOnboardingStatus): void {
+        if (status.landing.kind === "room") {
+            dis.dispatch<ViewRoomPayload>({
+                action: Action.ViewRoom,
+                room_id: status.landing.room_id,
+                metricsTrigger: undefined,
+            });
+            return;
+        }
+
+        dis.dispatch({ action: Action.ViewHomePage });
+    }
+
+    private async maybeShowNixorOnboarding(): Promise<void> {
+        if (this.nixorOnboardingChecked || MatrixClientPeg.safeGet().isGuest()) {
+            return;
+        }
+
+        this.nixorOnboardingChecked = true;
+
+        try {
+            const status = await getNixorOnboardingStatus();
+
+            if (!status.onboarding_completed) {
+                const { finished } = Modal.createDialog(
+                    NixorOnboardingDialog,
+                    { status },
+                    "mx_NixorOnboardingDialog_wrapper",
+                    true,
+                );
+                const [completed] = await finished;
+
+                if (completed) {
+                    this.routeToNixorLanding(status);
+                }
+
+                return;
+            }
+
+            if (this.tokenLogin) {
+                this.routeToNixorLanding(status);
+            }
+        } catch (error) {
+            logger.warn("Nixor onboarding check failed", error);
         }
     }
 

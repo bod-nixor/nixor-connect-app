@@ -22,6 +22,9 @@ import { SettingsSubsection, SettingsSubsectionText } from "../../shared/Setting
 import ExternalLink from "../../../elements/ExternalLink";
 import MatrixClientContext from "../../../../../contexts/MatrixClientContext";
 import { BugReportDialogButton } from "../../../elements/BugReportDialogButton";
+import Modal from "../../../../../Modal";
+import NixorOnboardingDialog from "../../../dialogs/NixorOnboardingDialog";
+import { getNixorOnboardingStatus } from "../../../../../nixor/onboarding";
 
 interface IState {
     appVersion: string | null;
@@ -77,6 +80,15 @@ export default class HelpUserSettingsTab extends React.Component<EmptyObject, IS
         this.context.store.deleteAllData().then(() => {
             PlatformPeg.get()?.reload();
         });
+    };
+
+    private onOpenNixorGuide = async (): Promise<void> => {
+        try {
+            const status = await getNixorOnboardingStatus();
+            Modal.createDialog(NixorOnboardingDialog, { status, canCancel: true });
+        } catch (e) {
+            logger.warn("Failed to open Nixor Connect guide", e);
+        }
     };
 
     private renderLegal(): ReactNode {
@@ -250,6 +262,11 @@ export default class HelpUserSettingsTab extends React.Component<EmptyObject, IS
             <SettingsTab>
                 <SettingsSection>
                     {bugReportingSection}
+                    <SettingsSubsection heading="Nixor Connect guide">
+                        <AccessibleButton onClick={this.onOpenNixorGuide} kind="primary_outline">
+                            Open guide
+                        </AccessibleButton>
+                    </SettingsSubsection>
                     <SettingsSubsection heading={_t("common|faq")} description={faqText} />
                     <SettingsSubsection heading={_t("setting|help_about|versions")}>
                         <SettingsSubsectionText>
