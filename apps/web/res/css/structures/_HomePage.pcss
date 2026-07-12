@@ -91,4 +91,214 @@ Please see LICENSE files in the repository root for full details.
             }
         }
     }
+
+    .mx_NixorBotDirectory {
+        width: min(100%, 920px);
+        margin: 28px auto 40px;
+        text-align: left;
+    }
+
+    .mx_NixorBotDirectory_header {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 12px;
+
+        h2 {
+            margin: 0;
+            font: var(--cpd-font-heading-md-semibold);
+            color: $primary-content;
+        }
+
+        p {
+            margin: 4px 0 0;
+            color: $secondary-content;
+            font-size: $font-14px;
+        }
+    }
+
+    .mx_NixorBotDirectory_search {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 240px;
+        padding: 8px 10px;
+        border: 1px solid $input-border-color;
+        border-radius: 8px;
+        background: $background;
+
+        svg {
+            width: 16px;
+            height: 16px;
+            color: $secondary-content;
+        }
+
+        input {
+            width: 100%;
+            border: 0;
+            outline: 0;
+            background: transparent;
+            color: $primary-content;
+            font: inherit;
+        }
+    }
+
+    .mx_NixorBotDirectory_categories {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding-bottom: 8px;
+    }
+
+    .mx_NixorBotDirectory_category {
+        white-space: nowrap;
+        padding: 5px 10px;
+        border: 1px solid $quinary-content;
+        border-radius: 8px;
+        color: $primary-content;
+        background: transparent;
+    }
+
+    .mx_NixorBotDirectory_categoryActive {
+        border-color: $accent;
+        color: $accent;
+        font-weight: var(--cpd-font-weight-semibold);
+    }
+
+    .mx_NixorBotDirectory_grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 12px;
+    }
+
+    .mx_NixorBotDirectory_card {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-height: 176px;
+        padding: 14px;
+        border: 1px solid $quinary-content;
+        border-radius: 8px;
+        background: $background;
+    }
+
+    .mx_NixorBotDirectory_cardHeader {
+        display: flex;
+        gap: 12px;
+
+        h3 {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin: 0 0 4px;
+            font: var(--cpd-font-body-lg-semibold);
+            color: $primary-content;
+
+            svg {
+                width: 15px;
+                height: 15px;
+                color: $accent;
+            }
+        }
+
+        p {
+            margin: 0;
+            color: $secondary-content;
+            font-size: $font-14px;
+            line-height: $font-20px;
+        }
+    }
+
+    .mx_NixorBotDirectory_icon {
+        display: grid;
+        place-items: center;
+        flex: 0 0 40px;
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        color: #fff;
+        background: $accent;
+        overflow: hidden;
+
+        img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        svg {
+            width: 22px;
+            height: 22px;
+        }
+    }
+
+    .mx_NixorBotDirectory_commands {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        min-height: 24px;
+
+        span {
+            padding: 2px 7px;
+            border-radius: 8px;
+            background: $system;
+            color: $secondary-content;
+            font-size: $font-12px;
+        }
+    }
+
+    .mx_NixorBotDirectory_actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: auto;
+    }
+
+    .mx_NixorBotDirectory_iconButton {
+        display: grid;
+        place-items: center;
+        width: 32px;
+        height: 32px;
+        border: 1px solid $quinary-content;
+        border-radius: 8px;
+        color: $secondary-content;
+
+        svg {
+            width: 16px;
+            height: 16px;
+        }
+    }
+
+    .mx_NixorBotDirectory_open {
+        margin-left: auto;
+        padding: 7px 12px;
+        border-radius: 8px;
+        color: #fff;
+        background: $accent;
+        font-weight: var(--cpd-font-weight-semibold);
+    }
+
+    .mx_NixorBotDirectory_state {
+        padding: 18px;
+        border: 1px dashed $quinary-content;
+        border-radius: 8px;
+        color: $secondary-content;
+        text-align: center;
+    }
+
+    .mx_NixorBotDirectory_error {
+        color: $alert;
+    }
+
+    @container homepage (max-width: 640px) {
+        .mx_NixorBotDirectory_header {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .mx_NixorBotDirectory_search {
+            min-width: 0;
+        }
+    }
 }

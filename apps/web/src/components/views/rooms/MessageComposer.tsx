@@ -54,6 +54,8 @@ import { type MatrixClientProps, withMatrixClientHOC } from "../../../contexts/M
 import { UIFeature } from "../../../settings/UIFeature";
 import { formatTimeLeft } from "../../../DateUtils";
 import RoomReplacedSvg from "../../../../res/img/room_replaced.svg";
+import { getNixorBotDmMarker } from "../../../nixor/bots";
+import NixorBotCommandLauncher from "../bots/NixorBotCommandLauncher";
 
 // The prefix used when persisting editor drafts to localstorage.
 export const WYSIWYG_EDITOR_STATE_STORAGE_PREFIX = "mx_wysiwyg_state_";
@@ -561,6 +563,7 @@ export class MessageComposer extends React.Component<IProps, IState> {
         const menuPosition = this.getMenuPosition();
 
         const canSendMessages = this.context.canSendMessages && !this.context.tombstone;
+        const botMarker = getNixorBotDmMarker(this.props.room);
         let composer: ReactNode;
         if (canSendMessages) {
             if (this.state.isWysiwygLabEnabled && menuPosition) {
@@ -684,6 +687,13 @@ export class MessageComposer extends React.Component<IProps, IState> {
                         {leftIcon}
                         {composer}
                         <div className="mx_MessageComposer_actions">
+                            {canSendMessages && botMarker && (
+                                <NixorBotCommandLauncher
+                                    client={this.props.mxClient}
+                                    room={this.props.room}
+                                    marker={botMarker}
+                                />
+                            )}
                             {controls}
                             {canSendMessages && (
                                 <MessageComposerButtons

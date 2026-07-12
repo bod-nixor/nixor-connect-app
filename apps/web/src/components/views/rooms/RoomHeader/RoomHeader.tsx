@@ -57,6 +57,7 @@ import { ToggleableIcon } from "./toggle/ToggleableIcon.tsx";
 import { CurrentRightPanelPhaseContextProvider } from "../../../../contexts/CurrentRightPanelPhaseContext.tsx";
 import { LocalRoom } from "../../../../models/LocalRoom.ts";
 import { useIsEncrypted } from "../../../../hooks/useIsEncrypted.ts";
+import { getNixorBotDmMarker } from "../../../../nixor/bots.ts";
 
 function RoomHeaderButtons({
     room,
@@ -449,6 +450,7 @@ export default function RoomHeader({
     const dmMember = useDmMember(room);
     const isDirectMessage = !!dmMember;
     const isRoomEncrypted = useIsEncrypted(client, room);
+    const botMarker = room instanceof LocalRoom ? null : getNixorBotDmMarker(room);
     const e2eStatus = useEncryptionStatus(client, room);
     const askToJoinEnabled = useFeatureEnabled("feature_ask_to_join");
     const onAvatarClick = (): void => {
@@ -497,7 +499,14 @@ export default function RoomHeader({
                             >
                                 <span className="mx_RoomHeader_truncated mx_lineClamp">{roomName}</span>
 
-                                {!isDirectMessage && joinRule === JoinRule.Public && (
+                                {botMarker && (
+                                    <span className="mx_NixorBotHeaderBadge">
+                                        <VerifiedIcon width="12px" height="12px" />
+                                        Bot
+                                    </span>
+                                )}
+
+                                {!botMarker && !isDirectMessage && joinRule === JoinRule.Public && (
                                     <Tooltip label={_t("common|public_room")} placement="right">
                                         <PublicIcon
                                             width="16px"

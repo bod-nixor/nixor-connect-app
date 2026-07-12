@@ -48,7 +48,7 @@ describe("Nixor onboarding API", () => {
         });
         expect(fetchMock).toHaveFetched("https://connect-api.nixorcorporate.com/auth/onboarding", {
             credentials: "include",
-        });
+        } as any);
     });
 
     it("persists onboarding completion with the Connect session cookie", async () => {
@@ -58,6 +58,6 @@ describe("Nixor onboarding API", () => {
         expect(fetchMock).toHaveFetched("https://connect-api.nixorcorporate.com/auth/onboarding/complete", {
             method: "POST",
             credentials: "include",
-        });
+        } as any);
     });
 });

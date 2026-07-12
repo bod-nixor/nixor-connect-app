@@ -1,0 +1,232 @@
+/*
+Copyright 2026 Nixor
+
+SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Commercial
+Please see LICENSE files in the repository root for full details.
+*/
+
+.mx_NixorBotCommandLauncher {
+    position: relative;
+}
+
+.mx_NixorBotCommandLauncher_button {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 32px;
+    padding: 0 8px;
+    border: 1px solid $quinary-content;
+    border-radius: 8px;
+    color: $primary-content;
+
+    svg {
+        width: 16px;
+        height: 16px;
+    }
+}
+
+.mx_NixorBotCommandLauncher_panel {
+    position: absolute;
+    right: 0;
+    bottom: 40px;
+    z-index: 5;
+    width: min(360px, calc(100vw - 32px));
+    max-height: 520px;
+    overflow: auto;
+    padding: 12px;
+    border: 1px solid $quinary-content;
+    border-radius: 8px;
+    background: $background;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.mx_NixorBotCommandLauncher_list {
+    display: grid;
+    gap: 8px;
+}
+
+.mx_NixorBotCommandLauncher_command {
+    display: grid;
+    gap: 2px;
+    padding: 10px;
+    border: 1px solid $quinary-content;
+    border-radius: 8px;
+    text-align: left;
+
+    strong {
+        color: $primary-content;
+    }
+
+    span {
+        color: $secondary-content;
+        font-size: $font-13px;
+    }
+}
+
+.mx_NixorBotCommandLauncher_form {
+    display: grid;
+    gap: 10px;
+
+    h3 {
+        margin: 0;
+        font: var(--cpd-font-body-lg-semibold);
+    }
+
+    label {
+        display: grid;
+        gap: 4px;
+        color: $primary-content;
+        font-size: $font-13px;
+    }
+
+    input,
+    textarea,
+    select {
+        min-width: 0;
+        padding: 8px;
+        border: 1px solid $input-border-color;
+        border-radius: 8px;
+        background: $background;
+        color: $primary-content;
+        font: inherit;
+    }
+
+    textarea {
+        min-height: 80px;
+        resize: vertical;
+    }
+
+    em {
+        color: $secondary-content;
+        font-style: normal;
+    }
+}
+
+.mx_NixorBotCommandLauncher_actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+
+    button,
+    .mx_AccessibleButton {
+        padding: 7px 12px;
+        border: 1px solid $quinary-content;
+        border-radius: 8px;
+        background: $background;
+        color: $primary-content;
+    }
+
+    button[type="submit"] {
+        border-color: $accent;
+        background: $accent;
+        color: #fff;
+    }
+}
+
+.mx_NixorBotCommandLauncher_error {
+    margin: 0;
+    color: $alert;
+    font-size: $font-13px;
+}
+
+.mx_NixorBotCommandLauncher_confirm {
+    margin: 0;
+    color: $secondary-content;
+}
+
+.mx_NixorBotHeaderBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 8px;
+    padding: 2px 7px;
+    border-radius: 8px;
+    background: $system;
+    color: $secondary-content;
+    font-size: $font-12px;
+    vertical-align: middle;
+}
+
+.mx_NixorBotEmptyState {
+    max-width: 560px;
+    margin: 40px 0 48px 64px;
+    padding: 20px;
+    border: 1px solid $quinary-content;
+    border-radius: 8px;
+    background: $background;
+
+    h2 {
+        margin: 0 0 8px;
+        font: var(--cpd-font-heading-md-semibold);
+    }
+
+    p {
+        margin: 0 0 14px;
+        color: $secondary-content;
+    }
+}
+
+.mx_NixorBotRichCard {
+    display: grid;
+    gap: 10px;
+    max-width: 440px;
+    padding: 12px;
+    border: 1px solid $quinary-content;
+    border-radius: 8px;
+    background: $background;
+}
+
+.mx_NixorBotRichCard_title {
+    font: var(--cpd-font-body-lg-semibold);
+    color: $primary-content;
+}
+
+.mx_NixorBotRichCard_body {
+    color: $primary-content;
+}
+
+.mx_NixorBotRichCard_fields {
+    display: grid;
+    gap: 6px;
+
+    div {
+        display: grid;
+        grid-template-columns: minmax(80px, 0.4fr) 1fr;
+        gap: 8px;
+        font-size: $font-13px;
+    }
+
+    dt {
+        color: $secondary-content;
+    }
+
+    dd {
+        margin: 0;
+        color: $primary-content;
+    }
+}
+
+.mx_NixorBotRichCard_actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    .mx_AccessibleButton {
+        padding: 7px 11px;
+        border: 1px solid $quinary-content;
+        border-radius: 8px;
+        background: $background;
+        color: $primary-content;
+    }
+
+    .mx_NixorBotRichCard_actionPrimary {
+        border-color: $accent;
+        background: $accent;
+        color: #fff;
+    }
+
+    .mx_NixorBotRichCard_actionDanger {
+        border-color: $alert;
+        color: $alert;
+    }
+}

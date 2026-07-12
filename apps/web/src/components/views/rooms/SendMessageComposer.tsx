@@ -60,6 +60,7 @@ import { type IDiff } from "../../../editor/diff";
 import { getBlobSafeMimeType } from "../../../utils/blobs";
 import { EMOJI_REGEX } from "../../../HtmlUtils";
 import { attachMentions, attachRelation } from "../../../utils/messages";
+import { getNixorBotDmMarker, relayNixorBotFreeText } from "../../../nixor/bots";
 
 // The prefix used when persisting editor drafts to localstorage.
 export const EDITOR_STATE_STORAGE_PREFIX = "mx_cider_state_";
@@ -452,6 +453,14 @@ export class SendMessageComposer extends React.Component<ISendMessageComposerPro
                 prom.then((resp) => {
                     sendRoundTripMetric(this.props.mxClient, roomId, resp.event_id);
                 });
+            }
+            const botMarker = getNixorBotDmMarker(this.props.room);
+            if (botMarker && !((content as unknown as Record<string, unknown>)["com.nixor.bot.interaction"])) {
+                prom.then((resp) => relayNixorBotFreeText({
+                    room: this.props.room,
+                    marker: botMarker,
+                    eventId: resp.event_id,
+                })).catch((error) => logger.warn("Nixor bot message relay failed", error));
             }
         }
 

@@ -33,6 +33,8 @@ import { shouldEncryptRoomWithSingle3rdPartyInvite } from "../../../utils/room/s
 import { useScopedRoomContext } from "../../../contexts/ScopedRoomContext.tsx";
 import { useTopic } from "../../../hooks/room/useTopic";
 import { topicToHtml } from "../../../HtmlUtils";
+import { getNixorBotDmMarker } from "../../../nixor/bots";
+import NixorBotEmptyState from "../bots/NixorBotEmptyState";
 
 function hasExpectedEncryptionSettings(matrixClient: MatrixClient, room: Room): boolean {
     const isEncrypted: boolean = matrixClient.isRoomEncrypted(room.roomId);
@@ -74,6 +76,11 @@ const NewRoomIntro: React.FC = () => {
     }
 
     let body: JSX.Element;
+    const botMarker = room instanceof LocalRoom ? null : getNixorBotDmMarker(room);
+    if (botMarker) {
+        return <NixorBotEmptyState marker={botMarker} roomName={room.name} />;
+    }
+
     if (dmPartner) {
         const { shouldEncrypt: encryptedSingle3rdPartyInvite } = shouldEncryptRoomWithSingle3rdPartyInvite(room);
         const introMessage = determineIntroMessage(room, encryptedSingle3rdPartyInvite);

@@ -25,6 +25,7 @@ import MatrixClientContext, { useMatrixClientContext } from "../../contexts/Matr
 import MiniAvatarUploader, { AVATAR_SIZE } from "../views/elements/MiniAvatarUploader";
 import PosthogTrackers from "../../PosthogTrackers";
 import EmbeddedPage from "./EmbeddedPage";
+import NixorBotDirectory from "../views/bots/NixorBotDirectory";
 
 const onClickSendDm = (ev: ButtonEvent): void => {
     PosthogTrackers.trackInteraction("WebHomeCreateChatButton", ev);
@@ -130,6 +131,7 @@ const HomePage: React.FC<IProps> = ({ justRegistered = false }) => {
                         {_tDom("onboarding|create_room")}
                     </AccessibleButton>
                 </div>
+                <NixorBotDirectory />
             </div>
         </AutoHideScrollbar>
     );

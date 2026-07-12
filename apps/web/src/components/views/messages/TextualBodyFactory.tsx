@@ -32,6 +32,7 @@ import PosthogTrackers from "../../../PosthogTrackers";
 import ImageView from "../elements/ImageView";
 import EditMessageComposer from "../rooms/EditMessageComposer";
 import { EditWysiwygComposer } from "../rooms/wysiwyg_composer";
+import NixorBotRichMessage, { parseNixorBotRichContent } from "../bots/NixorBotRichMessage";
 
 const logger = rootLogger.getChild("TextualBodyFactory");
 
@@ -203,6 +204,10 @@ export function TextualBodyFactory(props: Readonly<IBodyProps>): JSX.Element {
         ) : (
             <EditMessageComposer editState={props.editState} className="mx_EventTile_content" />
         );
+    }
+
+    if (parseNixorBotRichContent(content["com.nixor.bot"])) {
+        return <NixorBotRichMessage mxEvent={props.mxEvent} room={roomContext.room ?? undefined} client={client} />;
     }
 
     return (

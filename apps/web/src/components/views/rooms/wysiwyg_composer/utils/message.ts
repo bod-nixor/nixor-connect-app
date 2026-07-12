@@ -34,6 +34,7 @@ import { runSlashCommand, shouldSendAnyway } from "../../../../../editor/command
 import { Action } from "../../../../../dispatcher/actions";
 import { addReplyToMessageContent } from "../../../../../utils/Reply";
 import { attachRelation } from "../../../../../utils/messages";
+import { getNixorBotDmMarker, relayNixorBotFreeText } from "../../../../../nixor/bots";
 
 export interface SendMessageParams {
     mxClient: MatrixClient;
@@ -159,6 +160,15 @@ export async function sendMessage(
         prom.then((resp) => {
             sendRoundTripMetric(mxClient, roomId, resp.event_id);
         });
+    }
+
+    const botMarker = getNixorBotDmMarker(room);
+    if (room && botMarker && !((content as unknown as Record<string, unknown>)["com.nixor.bot.interaction"])) {
+        prom.then((resp) => relayNixorBotFreeText({
+            room,
+            marker: botMarker,
+            eventId: resp.event_id,
+        })).catch(() => undefined);
     }
 
     // TODO save history
