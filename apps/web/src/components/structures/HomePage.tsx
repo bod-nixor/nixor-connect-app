@@ -26,6 +26,8 @@ import MiniAvatarUploader, { AVATAR_SIZE } from "../views/elements/MiniAvatarUpl
 import PosthogTrackers from "../../PosthogTrackers";
 import EmbeddedPage from "./EmbeddedPage";
 import NixorBotDirectory from "../views/bots/NixorBotDirectory";
+import NixorAccountabilityWorkspace from "../views/accountability/NixorAccountabilityWorkspace";
+import { isNixorGovernanceEnabled } from "../../nixor/governanceApi";
 
 const onClickSendDm = (ev: ButtonEvent): void => {
     PosthogTrackers.trackInteraction("WebHomeCreateChatButton", ev);
@@ -92,6 +94,14 @@ const HomePage: React.FC<IProps> = ({ justRegistered = false }) => {
     const cli = useMatrixClientContext();
     const config = SdkConfig.get();
     const pageUrl = getHomePageUrl(config, cli);
+
+    if (isNixorGovernanceEnabled()) {
+        return (
+            <AutoHideScrollbar className="mx_HomePage mx_HomePage_nixor" element="div">
+                <NixorAccountabilityWorkspace />
+            </AutoHideScrollbar>
+        );
+    }
 
     if (pageUrl) {
         return <EmbeddedPage className="mx_HomePage" url={pageUrl} scrollbar={true} />;

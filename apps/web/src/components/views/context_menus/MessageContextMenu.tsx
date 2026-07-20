@@ -75,6 +75,8 @@ import { type ShowThreadPayload } from "../../../dispatcher/payloads/ShowThreadP
 import { CardContext } from "../right_panel/context";
 import PinningUtils from "../../../utils/PinningUtils";
 import PosthogTrackers from "../../../PosthogTrackers.ts";
+import NixorMessageGovernanceDialog from "../dialogs/NixorMessageGovernanceDialog";
+import { isNixorGovernanceEnabled } from "../../../nixor/governanceApi";
 
 interface IReplyInThreadButton {
     mxEvent: MatrixEvent;
@@ -244,6 +246,15 @@ export default class MessageContextMenu extends React.Component<IProps, IState> 
             action: Action.OpenReportEventDialog,
             event: this.props.mxEvent,
         });
+        this.closeMenu();
+    };
+
+    private onNixorGovernanceClick = (mode: "action" | "report"): void => {
+        Modal.createDialog(
+            NixorMessageGovernanceDialog,
+            { mxEvent: this.props.mxEvent, initialMode: mode },
+            "mx_NixorMessageGovernanceDialog_wrapper",
+        );
         this.closeMenu();
     };
 
@@ -587,6 +598,26 @@ export default class MessageContextMenu extends React.Component<IProps, IState> 
             );
         }
 
+        let nixorGovernanceButtons: JSX.Element | undefined;
+        if (isNixorGovernanceEnabled() && contentActionable) {
+            nixorGovernanceButtons = (
+                <>
+                    <IconizedContextMenuOption
+                        icon={<CheckIcon />}
+                        label="Create accountable action"
+                        onClick={() => this.onNixorGovernanceClick("action")}
+                    />
+                    {mxEvent.getSender() !== me && (
+                        <IconizedContextMenuOption
+                            icon={<ErrorSolidIcon />}
+                            label="Report to Nixor"
+                            onClick={() => this.onNixorGovernanceClick("report")}
+                        />
+                    )}
+                </>
+            );
+        }
+
         let copyLinkButton: JSX.Element | undefined;
         if (link) {
             copyLinkButton = (
@@ -728,6 +759,7 @@ export default class MessageContextMenu extends React.Component<IProps, IState> 
                 {endPollButton}
                 {forwardButton}
                 {permalinkButton}
+                {nixorGovernanceButtons}
                 {reportEventButton}
                 {externalURLButton}
                 {jumpToRelatedEventButton}

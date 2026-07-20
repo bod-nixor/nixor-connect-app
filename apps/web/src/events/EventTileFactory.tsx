@@ -50,6 +50,7 @@ import { EncryptionEventViewModel } from "../viewmodels/room/timeline/event-tile
 import { TextualEventViewModel } from "../viewmodels/room/timeline/event-tile/TextualEventViewModel";
 import { HiddenBodyViewModel } from "../viewmodels/room/timeline/event-tile/body/HiddenBodyViewModel";
 import { ElementCallEventType } from "../call-types";
+import NixorSafeUnknownEvent from "../components/views/messages/NixorSafeUnknownEvent";
 
 // Subset of EventTile's IProps plus some mixins
 export interface EventTileTypeProps extends Pick<
@@ -106,6 +107,11 @@ function HiddenBodyWrappedView({ mxEvent, ref }: IBodyProps): JSX.Element {
     return <HiddenBodyView vm={vm} ref={ref} className="mx_HiddenBody" />;
 }
 const HiddenEventFactory: Factory = (ref, props) => <HiddenBodyWrappedView ref={ref} {...props} />;
+const NixorSafeUnknownEventFactory: Factory = (_ref, props) => <NixorSafeUnknownEvent {...props} />;
+
+function isNixorCustomEvent(eventType: string): boolean {
+    return eventType.startsWith("com.nixor.") || eventType.startsWith("io.nixor.");
+}
 
 // These factories are exported for reference comparison against pickFactory()
 export const JitsiEventFactory: Factory = (ref, props) => <MJitsiWidgetEvent ref={ref} {...props} />;
@@ -252,7 +258,7 @@ export function pickFactory(
             return noEventFactoryFactory();
         }
 
-        return STATE_EVENT_TILE_TYPES.get(evType) ?? noEventFactoryFactory();
+        return STATE_EVENT_TILE_TYPES.get(evType) ?? (isNixorCustomEvent(evType) ? NixorSafeUnknownEventFactory : noEventFactoryFactory());
     }
 
     // Blanket override for all events. The MessageEvent component handles redacted states for us.
@@ -264,7 +270,7 @@ export function pickFactory(
         return noEventFactoryFactory();
     }
 
-    return EVENT_TILE_TYPES.get(evType) ?? noEventFactoryFactory();
+    return EVENT_TILE_TYPES.get(evType) ?? (isNixorCustomEvent(evType) ? NixorSafeUnknownEventFactory : noEventFactoryFactory());
 }
 
 /**
