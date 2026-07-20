@@ -34,7 +34,7 @@ interface IProps {
 interface RoleListProps {
     users: string[];
     disabled: boolean;
-    onRemove(userId: string): void;
+    onRemove: (userId: string) => void;
 }
 
 const RoleList: React.FC<RoleListProps> = ({ users, disabled, onRemove }) => {

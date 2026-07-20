@@ -7,7 +7,14 @@ Please see LICENSE files in the repository root for full details.
 */
 
 import React from "react";
-import { type Room, type ICreateRoomStateEvent, type RoomType, EventType, JoinRule } from "matrix-js-sdk/src/matrix";
+import {
+    type Room,
+    type ICreateRoomStateEvent,
+    type RoomType,
+    EventType,
+    JoinRule,
+    Visibility,
+} from "matrix-js-sdk/src/matrix";
 import { KnownMembership } from "matrix-js-sdk/src/types";
 
 import { calculateRoomVia } from "./permalinks/Permalinks";
@@ -33,7 +40,6 @@ import { type OpenSpaceSettingsPayload } from "../dispatcher/payloads/OpenSpaceS
 import { type OpenAddExistingToSpaceDialogPayload } from "../dispatcher/payloads/OpenAddExistingToSpaceDialogPayload";
 import { SdkContextClass } from "../contexts/SDKContext";
 import { canCreateNixorRoom, canCreateNixorServer } from "../nixor/permissions";
-import { Visibility } from "matrix-js-sdk/src/matrix";
 import {
     createChannel as createGovernanceChannel,
     getServerBySpaceId,

@@ -236,11 +236,7 @@ export const SpaceCreateForm: React.FC<ISpaceCreateFormProps> = ({
 const SpaceCreateMenu: React.FC<{
     onFinished(this: void): void;
 }> = ({ onFinished }) => {
-    if (!canCreateNixorServer()) {
-        onFinished();
-        return null;
-    }
-
+    const canCreateServer = canCreateNixorServer();
     const cli = useMatrixClientContext();
     const settingAllowPublicSpaces = useSettingValue(UIFeature.AllowCreatingPublicSpaces);
     const [visibility, setVisibility] = useState<Visibility | null>(
@@ -257,6 +253,12 @@ const SpaceCreateMenu: React.FC<{
 
     const [supportsSpaceFiltering, setSupportsSpaceFiltering] = useState(true); // assume it does until we find out it doesn't
     useEffect(() => {
+        if (!canCreateServer) {
+            onFinished();
+        }
+    }, [canCreateServer, onFinished]);
+
+    useEffect(() => {
         cli.isVersionSupported("v1.4")
             .then((supported) => {
                 return supported || cli.doesServerSupportUnstableFeature("org.matrix.msc3827.stable");
@@ -265,6 +267,10 @@ const SpaceCreateMenu: React.FC<{
                 setSupportsSpaceFiltering(supported);
             });
     }, [cli]);
+
+    if (!canCreateServer) {
+        return null;
+    }
 
     const onSpaceCreateClick = async (e: ButtonEvent): Promise<void> => {
         e.preventDefault();
