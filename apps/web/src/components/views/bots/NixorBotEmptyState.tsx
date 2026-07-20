@@ -7,7 +7,7 @@ Please see LICENSE files in the repository root for full details.
 
 import React, { useEffect, useState } from "react";
 
-import { getNixorBotCommands, NixorBotCommand, NixorBotDmMarker } from "../../../nixor/bots";
+import { getNixorBotCommands, type NixorBotCommand, type NixorBotDmMarker } from "../../../nixor/bots";
 
 const NixorBotEmptyState: React.FC<{ marker: NixorBotDmMarker; roomName: string }> = ({ marker, roomName }) => {
     const [commands, setCommands] = useState<NixorBotCommand[]>([]);
@@ -32,7 +32,9 @@ const NixorBotEmptyState: React.FC<{ marker: NixorBotDmMarker; roomName: string 
             <p>Start with a command or send a message.</p>
             {commands.length > 0 && (
                 <div className="mx_NixorBotDirectory_commands">
-                    {commands.map((command) => <span key={command.id}>{command.label}</span>)}
+                    {commands.map((command) => (
+                        <span key={command.id}>{command.label}</span>
+                    ))}
                 </div>
             )}
         </li>

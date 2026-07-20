@@ -12,9 +12,9 @@ import { type MatrixClient, type Room } from "matrix-js-sdk/src/matrix";
 import AccessibleButton from "../elements/AccessibleButton";
 import {
     getNixorBotCommands,
-    NixorBotCommand,
-    NixorBotDmMarker,
-    NixorBotField,
+    type NixorBotCommand,
+    type NixorBotDmMarker,
+    type NixorBotField,
     sendNixorBotCommand,
 } from "../../../nixor/bots";
 
@@ -31,23 +31,48 @@ function initialValue(field: NixorBotField): unknown {
     return "";
 }
 
+function stringInputValue(value: unknown): string {
+    if (typeof value === "string" || typeof value === "number") {
+        return String(value);
+    }
+    return "";
+}
+
 function renderField(field: NixorBotField, value: unknown, onChange: (value: unknown) => void): JSX.Element {
     if (field.type === "textarea") {
-        return <textarea value={String(value ?? "")} placeholder={field.placeholder} onChange={(ev) => onChange(ev.target.value)} />;
+        return (
+            <textarea
+                value={stringInputValue(value)}
+                placeholder={field.placeholder}
+                onChange={(ev) => onChange(ev.target.value)}
+            />
+        );
     }
     if (field.type === "select") {
         return (
-            <select value={String(value ?? "")} onChange={(ev) => onChange(ev.target.value)}>
+            <select value={stringInputValue(value)} onChange={(ev) => onChange(ev.target.value)}>
                 <option value="">Select</option>
-                {(field.options ?? []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                {(field.options ?? []).map((option) => (
+                    <option key={option.value} value={option.value}>
+                        {option.label}
+                    </option>
+                ))}
             </select>
         );
     }
     if (field.type === "multiselect") {
         const selected = Array.isArray(value) ? value.map(String) : [];
         return (
-            <select multiple value={selected} onChange={(ev) => onChange(Array.from(ev.target.selectedOptions).map((option) => option.value))}>
-                {(field.options ?? []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            <select
+                multiple
+                value={selected}
+                onChange={(ev) => onChange(Array.from(ev.target.selectedOptions).map((option) => option.value))}
+            >
+                {(field.options ?? []).map((option) => (
+                    <option key={option.value} value={option.value}>
+                        {option.label}
+                    </option>
+                ))}
             </select>
         );
     }
@@ -57,7 +82,7 @@ function renderField(field: NixorBotField, value: unknown, onChange: (value: unk
     return (
         <input
             type={field.type === "number" ? "number" : field.type}
-            value={String(value ?? "")}
+            value={stringInputValue(value)}
             min={field.min}
             max={field.max}
             minLength={field.min_length}
@@ -94,7 +119,10 @@ const NixorBotCommandLauncher: React.FC<IProps> = ({ client, room, marker }) => 
         if (!selected) return false;
         return selected.fields.every((field) => {
             const value = values[field.id];
-            return !field.required || (value !== undefined && value !== null && value !== "" && (!Array.isArray(value) || value.length > 0));
+            return (
+                !field.required ||
+                (value !== undefined && value !== null && value !== "" && (!Array.isArray(value) || value.length > 0))
+            );
         });
     }, [selected, values]);
 
@@ -121,7 +149,11 @@ const NixorBotCommandLauncher: React.FC<IProps> = ({ client, room, marker }) => 
 
     return (
         <div className="mx_NixorBotCommandLauncher">
-            <AccessibleButton className="mx_NixorBotCommandLauncher_button" onClick={() => setOpen(!open)} title="Commands">
+            <AccessibleButton
+                className="mx_NixorBotCommandLauncher_button"
+                onClick={() => setOpen(!open)}
+                title="Commands"
+            >
                 <ChatSolidIcon />
                 <span>Commands</span>
             </AccessibleButton>
@@ -131,7 +163,11 @@ const NixorBotCommandLauncher: React.FC<IProps> = ({ client, room, marker }) => 
                         <div className="mx_NixorBotCommandLauncher_list">
                             {commands.length === 0 && <p>No commands available.</p>}
                             {commands.map((command) => (
-                                <AccessibleButton key={command.id} className="mx_NixorBotCommandLauncher_command" onClick={() => chooseCommand(command)}>
+                                <AccessibleButton
+                                    key={command.id}
+                                    className="mx_NixorBotCommandLauncher_command"
+                                    onClick={() => chooseCommand(command)}
+                                >
                                     <strong>{command.label}</strong>
                                     {command.description && <span>{command.description}</span>}
                                 </AccessibleButton>
@@ -139,20 +175,35 @@ const NixorBotCommandLauncher: React.FC<IProps> = ({ client, room, marker }) => 
                         </div>
                     )}
                     {selected && (
-                        <form className="mx_NixorBotCommandLauncher_form" onSubmit={(ev) => { ev.preventDefault(); void submit(); }}>
+                        <form
+                            className="mx_NixorBotCommandLauncher_form"
+                            onSubmit={(ev) => {
+                                ev.preventDefault();
+                                void submit();
+                            }}
+                        >
                             <h3>{selected.label}</h3>
                             {selected.fields.map((field) => (
                                 <label key={field.id}>
-                                    <span>{field.label}{field.required ? " *" : ""}</span>
-                                    {renderField(field, values[field.id], (value) => setValues((current) => ({ ...current, [field.id]: value })))}
+                                    <span>
+                                        {field.label}
+                                        {field.required ? " *" : ""}
+                                    </span>
+                                    {renderField(field, values[field.id], (value) =>
+                                        setValues((current) => ({ ...current, [field.id]: value })),
+                                    )}
                                     {field.help_text && <em>{field.help_text}</em>}
                                 </label>
                             ))}
-                            {selected.confirmation && <p className="mx_NixorBotCommandLauncher_confirm">Review before sending.</p>}
+                            {selected.confirmation && (
+                                <p className="mx_NixorBotCommandLauncher_confirm">Review before sending.</p>
+                            )}
                             {error && <p className="mx_NixorBotCommandLauncher_error">{error}</p>}
                             <div className="mx_NixorBotCommandLauncher_actions">
                                 <AccessibleButton onClick={() => setSelected(null)}>Back</AccessibleButton>
-                                <button type="submit" disabled={!valid || sending}>{sending ? "Sending..." : "Run"}</button>
+                                <button type="submit" disabled={!valid || sending}>
+                                    {sending ? "Sending..." : "Run"}
+                                </button>
                             </div>
                         </form>
                     )}
