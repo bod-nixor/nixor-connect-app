@@ -9,7 +9,7 @@ import { type MatrixClient, MsgType, type Room } from "matrix-js-sdk/src/matrix"
 import { logger } from "matrix-js-sdk/src/logger";
 import { type RoomMessageEventContent } from "matrix-js-sdk/src/types";
 
-import { getNixorConnectApiBaseUrl } from "./sso";
+import { requestNixorConnect } from "./accountabilityApi";
 
 export interface NixorBotSummary {
     app_id: string;
@@ -68,19 +68,7 @@ export interface NixorBotDmMarker {
 }
 
 async function requestBotApi<T>(path: string, init: RequestInit = {}): Promise<T> {
-    const response = await fetch(`${getNixorConnectApiBaseUrl()}${path}`, {
-        ...init,
-        credentials: "include",
-        headers: {
-            "Content-Type": "application/json",
-            ...(init.headers ?? {}),
-        },
-    });
-    const body = (await response.json().catch(() => ({}))) as T & { error?: string };
-    if (!response.ok) {
-        throw new Error(body.error || `Nixor bot request failed: ${response.status}`);
-    }
-    return body;
+    return requestNixorConnect<T>(path, init);
 }
 
 export async function listNixorBots(input: { search?: string; category?: string } = {}): Promise<NixorBotSummary[]> {

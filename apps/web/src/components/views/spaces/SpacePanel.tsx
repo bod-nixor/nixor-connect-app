@@ -32,6 +32,13 @@ import {
     UserProfileSolidIcon,
     PlusIcon,
     ChevronRightIcon,
+    AdminIcon,
+    CheckIcon,
+    ErrorSolidIcon,
+    LockIcon,
+    NotificationsSolidIcon,
+    PollsIcon,
+    SettingsSolidIcon,
 } from "@vector-im/compound-design-tokens/assets/web/icons";
 import { useCreateAutoDisposedViewModel, UserMenu } from "@element-hq/web-shared-components";
 
@@ -85,6 +92,14 @@ import { UserMenuViewModel } from "../../../viewmodels/menus/UserMenuViewModel.t
 import { useMatrixClientContext } from "../../../contexts/MatrixClientContext.tsx";
 import { SDKContext } from "../../../contexts/SDKContext.ts";
 import { canCreateNixorServer } from "../../../nixor/permissions";
+import { isNixorGovernanceEnabled } from "../../../nixor/governanceApi";
+import { getNixorIdentity, type NixorIdentity } from "../../../nixor/accountabilityApi";
+import {
+    type NixorPrimaryView,
+    openNixorPrimaryView,
+    openNixorSettings,
+    useNixorPrimaryView,
+} from "../../../nixor/accountabilityNavigation";
 
 const useSpaces = (): [Room[], MetaSpace[], Room[], SpaceKey] => {
     const invites = useEventEmitterState<Room[]>(SpaceStore.instance, UPDATE_INVITED_SPACES, () => {
@@ -175,6 +190,7 @@ const HomeButton: React.FC<MetaSpaceButtonProps> = ({ selected, isPanelCollapsed
             contextMenuTooltip={_t("common|options")}
             size="32px"
             icon={<HomeSolidIcon />}
+            onClick={() => openNixorPrimaryView("home")}
         />
     );
 };
@@ -199,11 +215,74 @@ const PeopleButton: React.FC<MetaSpaceButtonProps> = ({ selected, isPanelCollaps
             spaceKey={MetaSpace.People}
             selected={selected}
             isPanelCollapsed={isPanelCollapsed}
-            label={getMetaSpaceName(MetaSpace.People)}
+            label={isNixorGovernanceEnabled() ? "Direct Messages" : getMetaSpaceName(MetaSpace.People)}
             notificationState={SpaceStore.instance.getNotificationState(MetaSpace.People)}
             size="32px"
             icon={<UserProfileSolidIcon />}
+            onClick={isNixorGovernanceEnabled() ? () => openNixorPrimaryView("direct_messages") : undefined}
         />
+    );
+};
+
+interface NixorSpaceNavItem {
+    id: NixorPrimaryView | "settings";
+    label: string;
+    icon: JSX.Element;
+    gate?: "case" | "admin";
+}
+
+const NIXOR_SPACE_NAV_ITEMS: NixorSpaceNavItem[] = [
+    { id: "servers", label: "Servers", icon: <RoomIcon /> },
+    { id: "accountability", label: "Accountability", icon: <CheckIcon /> },
+    { id: "decisions", label: "Decisions", icon: <PollsIcon /> },
+    { id: "reports", label: "Reports", icon: <ErrorSolidIcon /> },
+    { id: "cases", label: "Cases", icon: <LockIcon />, gate: "case" },
+    { id: "bots", label: "Bots", icon: <UserProfileSolidIcon /> },
+    { id: "notifications", label: "Notifications", icon: <NotificationsSolidIcon /> },
+    { id: "admin", label: "Admin / Developer", icon: <AdminIcon />, gate: "admin" },
+    { id: "settings", label: "Settings", icon: <SettingsSolidIcon /> },
+];
+
+const NixorSpaceNavigation: React.FC<{ isPanelCollapsed: boolean }> = ({ isPanelCollapsed }) => {
+    const activeView = useNixorPrimaryView();
+    const [identity, setIdentity] = useState<NixorIdentity | null>(null);
+    useEffect(() => {
+        let disposed = false;
+        void getNixorIdentity().then((value) => {
+            if (!disposed) setIdentity(value);
+        }).catch(() => undefined);
+        return () => { disposed = true; };
+    }, []);
+    const items = NIXOR_SPACE_NAV_ITEMS.filter((item) => {
+        if (item.gate === "case") return identity?.capabilities.some((capability) => capability.startsWith("case."));
+        if (item.gate === "admin") {
+            return identity?.capabilities.some((capability) =>
+                capability === "audit.view" || capability === "support.identity" || capability.startsWith("developer."),
+            );
+        }
+        return true;
+    });
+
+    return (
+        <>
+            {items.map((item) => (
+                <li
+                    key={item.id}
+                    className={classNames("mx_SpaceItem mx_NixorSpaceNavigation_item", { collapsed: isPanelCollapsed })}
+                    role="treeitem"
+                    aria-selected={item.id === activeView}
+                >
+                    <SpaceButton
+                        label={item.label}
+                        icon={item.icon}
+                        size="32px"
+                        isNarrow={isPanelCollapsed}
+                        selected={item.id === activeView}
+                        onClick={() => item.id === "settings" ? openNixorSettings() : openNixorPrimaryView(item.id)}
+                    />
+                </li>
+            ))}
+        </>
     );
 };
 
@@ -333,6 +412,7 @@ const InnerSpacePanel = React.memo<IInnerSpacePanelProps>(
                 aria-label={_t("common|spaces")}
             >
                 {metaSpacesSection}
+                {isNixorGovernanceEnabled() && <NixorSpaceNavigation isPanelCollapsed={isPanelCollapsed} />}
                 {invites.map((s) => (
                     <SpaceItem
                         key={s.roomId}

@@ -16,6 +16,93 @@ const serverSupportMap: {
     };
 } = {};
 
+interface NixorPushPayload {
+    title?: unknown;
+    body?: unknown;
+    deep_link?: unknown;
+    notification_public_id?: unknown;
+}
+
+interface NixorPushEvent extends Event {
+    data?: { json(): unknown };
+    waitUntil(promise: Promise<unknown>): void;
+}
+
+interface NixorNotificationClickEvent extends Event {
+    notification: Notification & { data?: unknown };
+    waitUntil(promise: Promise<unknown>): void;
+}
+
+interface NixorWindowClient {
+    url: string;
+    focus(): Promise<NixorWindowClient>;
+    navigate(url: string): Promise<NixorWindowClient | null>;
+}
+
+interface NixorServiceWorkerClients {
+    matchAll(options: { type: "window"; includeUncontrolled: boolean }): Promise<NixorWindowClient[]>;
+    openWindow(url: string): Promise<NixorWindowClient | null>;
+}
+
+function pushDestination(value: unknown): string {
+    if (typeof value !== "string" || value.length > 512 || !value.startsWith("/") || value.startsWith("//")) {
+        return "/?nixor_view=notifications";
+    }
+    const requestedView = new URL(value, global.location.origin).searchParams.get("nixor_view");
+    if (["accountability", "decisions", "reports", "cases", "bots", "notifications"].includes(requestedView ?? "")) {
+        return `/?nixor_view=${requestedView}`;
+    }
+    if (value.startsWith("/formal-notices/") || value.startsWith("/action-items/")) {
+        return "/?nixor_view=accountability";
+    }
+    for (const view of ["decisions", "reports", "cases", "bots"] as const) {
+        if (value.startsWith(`/${view}/`)) return `/?nixor_view=${view}`;
+    }
+    return "/?nixor_view=notifications";
+}
+
+// Push payloads are rendered only as text and may navigate only to fixed same-origin views.
+// @ts-expect-error - service worker event types conflict with the DOM library used by the web application.
+global.addEventListener("push", (event: NixorPushEvent) => {
+    let payload: NixorPushPayload = {};
+    try {
+        payload = (event.data?.json() ?? {}) as NixorPushPayload;
+    } catch {
+        payload = {};
+    }
+    const title = typeof payload.title === "string" ? payload.title.slice(0, 160) : "Nixor Connect";
+    const body = typeof payload.body === "string" ? payload.body.slice(0, 1_000) : "You have a new notification.";
+    const tag = typeof payload.notification_public_id === "string"
+        ? `nixor:${payload.notification_public_id.slice(0, 200)}`
+        : "nixor:notification";
+    // @ts-expect-error - service worker registration is unavailable in the window-oriented DOM types.
+    event.waitUntil(global.registration.showNotification(title, {
+        body,
+        tag,
+        icon: "/vector-icons/192.png",
+        badge: "/vector-icons/24.png",
+        data: { destination: pushDestination(payload.deep_link) },
+    }));
+});
+
+// @ts-expect-error - service worker event types conflict with the DOM library used by the web application.
+global.addEventListener("notificationclick", (event: NixorNotificationClickEvent) => {
+    event.notification.close();
+    const value = (event.notification.data as { destination?: unknown } | undefined)?.destination;
+    const destination = pushDestination(value);
+    const serviceWorkerClients = (global as unknown as { clients: NixorServiceWorkerClients }).clients;
+    event.waitUntil((async () => {
+        const windows = await serviceWorkerClients.matchAll({ type: "window", includeUncontrolled: true });
+        const existing = windows.find((client) => new URL(client.url).origin === global.location.origin);
+        if (existing) {
+            await existing.navigate(destination);
+            await existing.focus();
+            return;
+        }
+        await serviceWorkerClients.openWindow(destination);
+    })());
+});
+
 global.addEventListener("install", (event) => {
     // We skipWaiting() to update the service worker more frequently, particularly in development environments.
     // @ts-expect-error - service worker types are not available. See 'fetch' event handler.
