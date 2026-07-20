@@ -9,7 +9,7 @@ import React, { useState } from "react";
 
 import BaseDialog from "./BaseDialog";
 import DialogButtons from "../elements/DialogButtons";
-import { completeNixorOnboarding, NixorOnboardingStatus } from "../../../nixor/onboarding";
+import { completeNixorOnboarding, type NixorOnboardingStatus } from "../../../nixor/onboarding";
 
 interface IProps {
     status: NixorOnboardingStatus;

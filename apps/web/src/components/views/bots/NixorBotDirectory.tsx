@@ -6,17 +6,18 @@ Please see LICENSE files in the repository root for full details.
 */
 
 import React, { type JSX, useEffect, useMemo, useState } from "react";
-import { ChatSolidIcon, FavouriteSolidIcon, NotificationsSolidIcon, SearchIcon, VerifiedIcon } from "@vector-im/compound-design-tokens/assets/web/icons";
+import {
+    ChatSolidIcon,
+    FavouriteSolidIcon,
+    NotificationsSolidIcon,
+    SearchIcon,
+    VerifiedIcon,
+} from "@vector-im/compound-design-tokens/assets/web/icons";
 
 import AccessibleButton from "../elements/AccessibleButton";
 import dis from "../../../dispatcher/dispatcher";
 import { Action } from "../../../dispatcher/actions";
-import {
-    listNixorBots,
-    NixorBotSummary,
-    openNixorBot,
-    updateNixorBotPreferences,
-} from "../../../nixor/bots";
+import { listNixorBots, type NixorBotSummary, openNixorBot, updateNixorBotPreferences } from "../../../nixor/bots";
 
 const NixorBotDirectory: React.FC = () => {
     const [bots, setBots] = useState<NixorBotSummary[]>([]);
@@ -48,7 +49,9 @@ const NixorBotDirectory: React.FC = () => {
     }, []);
 
     const categories = useMemo(() => {
-        const values = Array.from(new Set(bots.map((bot) => bot.category).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b));
+        const values = Array.from(new Set(bots.map((bot) => bot.category).filter(Boolean) as string[])).sort((a, b) =>
+            a.localeCompare(b),
+        );
         return ["all", ...values];
     }, [bots]);
 
@@ -75,13 +78,17 @@ const NixorBotDirectory: React.FC = () => {
 
     const onFavourite = async (bot: NixorBotSummary): Promise<void> => {
         const favourited = !bot.favourited;
-        setBots((current) => current.map((item) => item.app_id === bot.app_id ? { ...item, favourited } : item));
+        setBots((current) => current.map((item) => (item.app_id === bot.app_id ? { ...item, favourited } : item)));
         await updateNixorBotPreferences(bot.app_id, { favourited });
     };
 
     const onNotifications = async (bot: NixorBotSummary): Promise<void> => {
         const notificationsEnabled = bot.notifications_enabled === false;
-        setBots((current) => current.map((item) => item.app_id === bot.app_id ? { ...item, notifications_enabled: notificationsEnabled } : item));
+        setBots((current) =>
+            current.map((item) =>
+                item.app_id === bot.app_id ? { ...item, notifications_enabled: notificationsEnabled } : item,
+            ),
+        );
         await updateNixorBotPreferences(bot.app_id, { notifications_enabled: notificationsEnabled });
     };
 
@@ -129,7 +136,9 @@ const NixorBotDirectory: React.FC = () => {
                             </AccessibleButton>
                             <AccessibleButton
                                 className="mx_NixorBotDirectory_iconButton"
-                                title={bot.notifications_enabled === false ? "Enable notifications" : "Mute notifications"}
+                                title={
+                                    bot.notifications_enabled === false ? "Enable notifications" : "Mute notifications"
+                                }
                                 onClick={() => void onNotifications(bot)}
                             >
                                 <NotificationsSolidIcon />
@@ -164,7 +173,11 @@ const NixorBotDirectory: React.FC = () => {
                 {categories.map((item) => (
                     <AccessibleButton
                         key={item}
-                        className={category === item ? "mx_NixorBotDirectory_category mx_NixorBotDirectory_categoryActive" : "mx_NixorBotDirectory_category"}
+                        className={
+                            category === item
+                                ? "mx_NixorBotDirectory_category mx_NixorBotDirectory_categoryActive"
+                                : "mx_NixorBotDirectory_category"
+                        }
                         onClick={() => setCategory(item)}
                     >
                         {item === "all" ? "All" : item}
