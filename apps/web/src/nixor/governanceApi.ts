@@ -117,13 +117,17 @@ async function requestGovernance<T>(path: string, init: RequestInit = {}): Promi
         throw new Error("Nixor Governance API is disabled");
     }
 
-    return requestNixorConnect<T>(path, {
-        ...init,
-        headers: {
-            ...getGovernanceHeaders(),
-            ...(init.headers ?? {}),
+    return requestNixorConnect<T>(
+        path,
+        {
+            ...init,
+            headers: {
+                ...getGovernanceHeaders(),
+                ...(init.headers ?? {}),
+            },
         },
-    });
+        { skipCsrfBootstrap: Boolean(nixorConfig.dev_governance_api_token) },
+    );
 }
 
 export async function getServerBySpaceId(spaceId: string): Promise<NixorServer> {
