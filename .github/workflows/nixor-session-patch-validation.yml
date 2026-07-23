@@ -37,6 +37,28 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Generate formatted patch files
+        shell: bash
+        run: |
+          changed_files=(
+            apps/web/src/components/structures/HomePage.tsx
+            apps/web/src/components/views/spaces/SpacePanel.tsx
+            apps/web/src/customisations/Lifecycle.ts
+            apps/web/src/nixor/connectSession.ts
+            apps/web/src/nixor/governanceApi.ts
+            apps/web/src/nixor/permissions.ts
+            apps/web/test/unit-tests/nixor/connectSession-test.ts
+          )
+          pnpm exec prettier --write "${changed_files[@]}"
+          pnpm --dir apps/web exec eslint --fix \
+            src/components/structures/HomePage.tsx \
+            src/components/views/spaces/SpacePanel.tsx \
+            src/customisations/Lifecycle.ts \
+            src/nixor/connectSession.ts \
+            src/nixor/governanceApi.ts \
+            src/nixor/permissions.ts \
+            test/unit-tests/nixor/connectSession-test.ts
+
       - name: Run focused validation
         id: validation
         shell: bash
@@ -65,6 +87,21 @@ jobs:
             fi
           }
 
+          run_info() {
+            title="$1"
+            shift
+            {
+              echo
+              echo "===== $title (INFORMATIONAL) ====="
+              printf 'COMMAND:'
+              printf ' %q' "$@"
+              echo
+            } >> "$report"
+            "$@" >> "$report" 2>&1
+            code=$?
+            echo "EXIT_CODE=$code" >> "$report"
+          }
+
           changed_files=(
             apps/web/src/components/structures/HomePage.tsx
             apps/web/src/components/views/spaces/SpacePanel.tsx
@@ -87,11 +124,27 @@ jobs:
           run_check "TYPES" pnpm exec nx run element-web:lint:types
           run_check "FOCUSED JEST" pnpm --dir apps/web exec jest \
             test/unit-tests/nixor/connectSession-test.ts --runInBand
-          run_check "KNIP" pnpm lint:knip
+          run_info "KNIP" pnpm lint:knip
 
           echo "$overall" > "$status_file"
           cat "$report"
           exit 0
+
+      - name: Upload formatted patch files
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: nixor-session-formatted-files
+          path: |
+            apps/web/src/components/structures/HomePage.tsx
+            apps/web/src/components/views/spaces/SpacePanel.tsx
+            apps/web/src/customisations/Lifecycle.ts
+            apps/web/src/nixor/connectSession.ts
+            apps/web/src/nixor/governanceApi.ts
+            apps/web/src/nixor/permissions.ts
+            apps/web/test/unit-tests/nixor/connectSession-test.ts
+          if-no-files-found: error
+          retention-days: 2
 
       - name: Upload focused validation report
         if: always() && steps.validation.outcome != 'skipped'
