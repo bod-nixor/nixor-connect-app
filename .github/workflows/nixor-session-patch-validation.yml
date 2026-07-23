@@ -1,9 +1,18 @@
 name: Nixor Session Patch Validation
 
 on:
-  push:
+  pull_request:
     branches:
-      - fix/connect-session-bootstrap
+      - nixor/main
+    paths:
+      - apps/web/src/components/structures/HomePage.tsx
+      - apps/web/src/components/views/spaces/SpacePanel.tsx
+      - apps/web/src/customisations/Lifecycle.ts
+      - apps/web/src/nixor/connectSession.ts
+      - apps/web/src/nixor/governanceApi.ts
+      - apps/web/src/nixor/permissions.ts
+      - apps/web/test/unit-tests/nixor/connectSession-test.ts
+      - .github/workflows/nixor-session-patch-validation.yml
 
 permissions:
   contents: read
