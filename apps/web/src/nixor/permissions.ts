@@ -7,6 +7,7 @@ Please see LICENSE files in the repository root for full details.
 
 import SdkConfig from "../SdkConfig";
 import { MatrixClientPeg } from "../MatrixClientPeg";
+import { ensureNixorConnectSession } from "./connectSession";
 
 export interface NixorPermissions {
     can_create_servers: boolean;
@@ -48,6 +49,7 @@ let cachedPermissions: NixorPermissions | null = null;
 let cachedMatrixUserId: string | null = null;
 let lastFetchAt = 0;
 let inFlightFetch: Promise<NixorPermissions> | null = null;
+let inFlightMatrixUserId: string | null = null;
 
 function normalizePermissions(permissions?: Partial<NixorPermissions>): NixorPermissions {
     return {
@@ -80,6 +82,18 @@ function getDevPermissions(nixorConfig: NixorConfig | undefined, matrixUserId: s
     return normalizePermissions(nixorConfig.dev_permissions);
 }
 
+function failClosedForUser(matrixUserId: string | null): void {
+    cachedPermissions = null;
+    cachedMatrixUserId = matrixUserId;
+    lastFetchAt = 0;
+}
+
+export function clearNixorPermissionsCache(): void {
+    failClosedForUser(null);
+    inFlightFetch = null;
+    inFlightMatrixUserId = null;
+}
+
 export async function refreshNixorPermissions(force = false): Promise<NixorPermissions> {
     const nixorConfig = getNixorConfig();
     const matrixUserId = getCurrentMatrixUserId();
@@ -91,13 +105,17 @@ export async function refreshNixorPermissions(force = false): Promise<NixorPermi
         return cachedPermissions;
     }
 
+    if (cachedMatrixUserId !== matrixUserId) {
+        failClosedForUser(matrixUserId);
+    }
+
     const now = Date.now();
 
-    if (!force && cachedPermissions && cachedMatrixUserId === matrixUserId && now - lastFetchAt < CACHE_TTL_MS) {
+    if (!force && cachedPermissions && now - lastFetchAt < CACHE_TTL_MS) {
         return cachedPermissions;
     }
 
-    if (inFlightFetch) {
+    if (inFlightFetch && inFlightMatrixUserId === matrixUserId) {
         return inFlightFetch;
     }
 
@@ -105,47 +123,57 @@ export async function refreshNixorPermissions(force = false): Promise<NixorPermi
 
     if (!baseUrl) {
         cachedPermissions = DEFAULT_PERMISSIONS;
-        cachedMatrixUserId = matrixUserId;
         lastFetchAt = now;
         return cachedPermissions;
     }
 
-    inFlightFetch = fetch(`${baseUrl}/api/users/${encodeURIComponent(matrixUserId)}/permissions`, {
-        method: "GET",
-        headers: {
-            "Content-Type": "application/json",
-            ...(nixorConfig.dev_governance_api_token
-                ? { Authorization: `Bearer ${nixorConfig.dev_governance_api_token}` }
-                : {}),
-        },
-    })
+    let request: Promise<NixorPermissions>;
+    request = ensureNixorConnectSession()
+        .then(() => fetch(`${baseUrl}/api/users/${encodeURIComponent(matrixUserId)}/permissions`, {
+            method: "GET",
+            credentials: "include",
+            headers: {
+                "Content-Type": "application/json",
+                ...(nixorConfig.dev_governance_api_token
+                    ? { Authorization: `Bearer ${nixorConfig.dev_governance_api_token}` }
+                    : {}),
+            },
+        }))
         .then(async (response) => {
             const body = (await response.json()) as GovernancePermissionsResponse;
 
-            if (!response.ok || !body.ok) {
+            if (!response.ok || !body.ok || body.matrix_user_id !== matrixUserId) {
                 throw new Error(`Failed to fetch Nixor permissions: ${response.status}`);
             }
 
-            cachedPermissions = normalizePermissions(body.permissions);
-            cachedMatrixUserId = matrixUserId;
-            lastFetchAt = Date.now();
+            const permissions = normalizePermissions(body.permissions);
+            if (getCurrentMatrixUserId() === matrixUserId && cachedMatrixUserId === matrixUserId) {
+                cachedPermissions = permissions;
+                lastFetchAt = Date.now();
+            }
 
-            return cachedPermissions;
+            return permissions;
         })
         .catch((error) => {
             console.warn("Nixor Connect: failed to fetch governance permissions", error);
 
-            cachedPermissions = DEFAULT_PERMISSIONS;
-            cachedMatrixUserId = matrixUserId;
-            lastFetchAt = Date.now();
+            if (getCurrentMatrixUserId() === matrixUserId && cachedMatrixUserId === matrixUserId) {
+                cachedPermissions = DEFAULT_PERMISSIONS;
+                lastFetchAt = Date.now();
+            }
 
-            return cachedPermissions;
+            return DEFAULT_PERMISSIONS;
         })
         .finally(() => {
-            inFlightFetch = null;
+            if (inFlightFetch === request) {
+                inFlightFetch = null;
+                inFlightMatrixUserId = null;
+            }
         });
 
-    return inFlightFetch;
+    inFlightFetch = request;
+    inFlightMatrixUserId = matrixUserId;
+    return request;
 }
 
 export function getNixorPermissions(): NixorPermissions {
@@ -156,7 +184,13 @@ export function getNixorPermissions(): NixorPermissions {
         return getDevPermissions(nixorConfig, matrixUserId);
     }
 
-    if (!cachedPermissions || cachedMatrixUserId !== matrixUserId || Date.now() - lastFetchAt > CACHE_TTL_MS) {
+    if (cachedMatrixUserId !== matrixUserId) {
+        failClosedForUser(matrixUserId);
+        void refreshNixorPermissions();
+        return DEFAULT_PERMISSIONS;
+    }
+
+    if (!cachedPermissions || Date.now() - lastFetchAt > CACHE_TTL_MS) {
         void refreshNixorPermissions();
     }
 
