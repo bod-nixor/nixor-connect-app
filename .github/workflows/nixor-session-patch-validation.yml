@@ -15,15 +15,17 @@ on:
       - .github/workflows/nixor-session-patch-validation.yml
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   validate:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
-      - name: Checkout
+      - name: Checkout patch branch
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
 
       - name: Set up pnpm
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
@@ -37,9 +39,29 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Generate formatted patch files
+      - name: Format patch files
         shell: bash
         run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              Path("apps/web/src/nixor/connectSession.ts"): (
+                  "    let request: Promise<void>;\n    request = bootstrapNixorConnectSession(credentials)",
+                  "    const request = bootstrapNixorConnectSession(credentials)",
+              ),
+              Path("apps/web/src/nixor/permissions.ts"): (
+                  "    let request: Promise<NixorPermissions>;\n    request = ensureNixorConnectSession()",
+                  "    const request = ensureNixorConnectSession()",
+              ),
+          }
+
+          for path, (before, after) in replacements.items():
+              content = path.read_text()
+              if before in content:
+                  path.write_text(content.replace(before, after, 1))
+          PY
+
           changed_files=(
             apps/web/src/components/structures/HomePage.tsx
             apps/web/src/components/views/spaces/SpacePanel.tsx
@@ -58,6 +80,27 @@ jobs:
             src/nixor/governanceApi.ts \
             src/nixor/permissions.ts \
             test/unit-tests/nixor/connectSession-test.ts
+
+      - name: Commit formatting corrections
+        shell: bash
+        run: |
+          git add \
+            apps/web/src/components/structures/HomePage.tsx \
+            apps/web/src/components/views/spaces/SpacePanel.tsx \
+            apps/web/src/customisations/Lifecycle.ts \
+            apps/web/src/nixor/connectSession.ts \
+            apps/web/src/nixor/governanceApi.ts \
+            apps/web/src/nixor/permissions.ts \
+            apps/web/test/unit-tests/nixor/connectSession-test.ts
+
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Format Connect session patch"
+          git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
 
       - name: Run focused validation
         id: validation
@@ -129,22 +172,6 @@ jobs:
           echo "$overall" > "$status_file"
           cat "$report"
           exit 0
-
-      - name: Upload formatted patch files
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: nixor-session-formatted-files
-          path: |
-            apps/web/src/components/structures/HomePage.tsx
-            apps/web/src/components/views/spaces/SpacePanel.tsx
-            apps/web/src/customisations/Lifecycle.ts
-            apps/web/src/nixor/connectSession.ts
-            apps/web/src/nixor/governanceApi.ts
-            apps/web/src/nixor/permissions.ts
-            apps/web/test/unit-tests/nixor/connectSession-test.ts
-          if-no-files-found: error
-          retention-days: 2
 
       - name: Upload focused validation report
         if: always() && steps.validation.outcome != 'skipped'
