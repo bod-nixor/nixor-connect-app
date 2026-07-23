@@ -1,0 +1,104 @@
+name: Nixor Session Patch Validation
+
+on:
+  push:
+    branches:
+      - fix/connect-session-bootstrap
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+        with:
+          version: 10.33.3
+
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22.18.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run focused validation
+        id: validation
+        shell: bash
+        run: |
+          set +e
+          report="$RUNNER_TEMP/nixor-session-validation.txt"
+          status_file="$RUNNER_TEMP/nixor-session-validation.status"
+          : > "$report"
+          overall=0
+
+          run_check() {
+            title="$1"
+            shift
+            {
+              echo
+              echo "===== $title ====="
+              printf 'COMMAND:'
+              printf ' %q' "$@"
+              echo
+            } >> "$report"
+            "$@" >> "$report" 2>&1
+            code=$?
+            echo "EXIT_CODE=$code" >> "$report"
+            if [ "$code" -ne 0 ]; then
+              overall=1
+            fi
+          }
+
+          changed_files=(
+            apps/web/src/components/structures/HomePage.tsx
+            apps/web/src/components/views/spaces/SpacePanel.tsx
+            apps/web/src/customisations/Lifecycle.ts
+            apps/web/src/nixor/connectSession.ts
+            apps/web/src/nixor/governanceApi.ts
+            apps/web/src/nixor/permissions.ts
+            apps/web/test/unit-tests/nixor/connectSession-test.ts
+          )
+
+          run_check "PRETTIER" pnpm exec prettier --check "${changed_files[@]}"
+          run_check "ESLINT" pnpm --dir apps/web exec eslint --max-warnings 0 \
+            src/components/structures/HomePage.tsx \
+            src/components/views/spaces/SpacePanel.tsx \
+            src/customisations/Lifecycle.ts \
+            src/nixor/connectSession.ts \
+            src/nixor/governanceApi.ts \
+            src/nixor/permissions.ts \
+            test/unit-tests/nixor/connectSession-test.ts
+          run_check "TYPES" pnpm exec nx run element-web:lint:types
+          run_check "FOCUSED JEST" pnpm --dir apps/web exec jest \
+            test/unit-tests/nixor/connectSession-test.ts --runInBand
+          run_check "KNIP" pnpm lint:knip
+
+          echo "$overall" > "$status_file"
+          cat "$report"
+          exit 0
+
+      - name: Upload focused validation report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: nixor-session-validation
+          path: |
+            ${{ runner.temp }}/nixor-session-validation.txt
+            ${{ runner.temp }}/nixor-session-validation.status
+          if-no-files-found: error
+          retention-days: 2
+
+      - name: Fail when validation failed
+        if: always()
+        shell: bash
+        run: |
+          test "$(cat "$RUNNER_TEMP/nixor-session-validation.status")" = "0"
