@@ -27,8 +27,6 @@ jobs:
 
       - name: Set up pnpm
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
-        with:
-          version: 10.33.3
 
       - name: Set up Node
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
@@ -96,7 +94,7 @@ jobs:
           exit 0
 
       - name: Upload focused validation report
-        if: always()
+        if: always() && steps.validation.outcome != 'skipped'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: nixor-session-validation
@@ -110,4 +108,6 @@ jobs:
         if: always()
         shell: bash
         run: |
-          test "$(cat "$RUNNER_TEMP/nixor-session-validation.status")" = "0"
+          status_file="$RUNNER_TEMP/nixor-session-validation.status"
+          test -f "$status_file"
+          test "$(cat "$status_file")" = "0"
