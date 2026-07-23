@@ -259,13 +259,18 @@ const NixorSpaceNavigation: React.FC<{ isPanelCollapsed: boolean }> = ({ isPanel
                 if (!disposed && value.identity.matrix_user_id === matrixUserId) setIdentity(value);
             })
             .catch(() => undefined);
-        return () => { disposed = true; };
+        return () => {
+            disposed = true;
+        };
     }, [matrixUserId, matrixDeviceId]);
     const items = NIXOR_SPACE_NAV_ITEMS.filter((item) => {
         if (item.gate === "case") return identity?.capabilities.some((capability) => capability.startsWith("case."));
         if (item.gate === "admin") {
-            return identity?.capabilities.some((capability) =>
-                capability === "audit.view" || capability === "support.identity" || capability.startsWith("developer."),
+            return identity?.capabilities.some(
+                (capability) =>
+                    capability === "audit.view" ||
+                    capability === "support.identity" ||
+                    capability.startsWith("developer."),
             );
         }
         return true;
@@ -286,7 +291,7 @@ const NixorSpaceNavigation: React.FC<{ isPanelCollapsed: boolean }> = ({ isPanel
                         size="32px"
                         isNarrow={isPanelCollapsed}
                         selected={item.id === activeView}
-                        onClick={() => item.id === "settings" ? openNixorSettings() : openNixorPrimaryView(item.id)}
+                        onClick={() => (item.id === "settings" ? openNixorSettings() : openNixorPrimaryView(item.id))}
                     />
                 </li>
             ))}
@@ -338,7 +343,9 @@ const CreateSpaceButton: React.FC<Pick<IInnerSpacePanelProps, "isPanelCollapsed"
         void refreshNixorPermissions(true).then((permissions) => {
             if (!disposed) setCanCreateServer(permissions.can_create_servers);
         });
-        return () => { disposed = true; };
+        return () => {
+            disposed = true;
+        };
     }, [matrixUserId, matrixDeviceId]);
 
     useEffect(() => {

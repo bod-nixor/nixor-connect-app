@@ -127,18 +127,19 @@ export async function refreshNixorPermissions(force = false): Promise<NixorPermi
         return cachedPermissions;
     }
 
-    let request: Promise<NixorPermissions>;
-    request = ensureNixorConnectSession()
-        .then(() => fetch(`${baseUrl}/api/users/${encodeURIComponent(matrixUserId)}/permissions`, {
-            method: "GET",
-            credentials: "include",
-            headers: {
-                "Content-Type": "application/json",
-                ...(nixorConfig.dev_governance_api_token
-                    ? { Authorization: `Bearer ${nixorConfig.dev_governance_api_token}` }
-                    : {}),
-            },
-        }))
+    const request = ensureNixorConnectSession()
+        .then(() =>
+            fetch(`${baseUrl}/api/users/${encodeURIComponent(matrixUserId)}/permissions`, {
+                method: "GET",
+                credentials: "include",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(nixorConfig.dev_governance_api_token
+                        ? { Authorization: `Bearer ${nixorConfig.dev_governance_api_token}` }
+                        : {}),
+                },
+            }),
+        )
         .then(async (response) => {
             const body = (await response.json()) as GovernancePermissionsResponse;
 

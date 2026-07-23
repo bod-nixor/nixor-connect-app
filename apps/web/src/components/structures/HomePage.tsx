@@ -30,10 +30,7 @@ import NixorBotDirectory from "../views/bots/NixorBotDirectory";
 import NixorAccountabilityWorkspace from "../views/accountability/NixorAccountabilityWorkspace";
 import { isNixorGovernanceEnabled } from "../../nixor/governanceApi";
 import { clearNixorApiSession } from "../../nixor/accountabilityApi";
-import {
-    ensureNixorConnectSession,
-    resetNixorConnectSessionBootstrap,
-} from "../../nixor/connectSession";
+import { ensureNixorConnectSession, resetNixorConnectSessionBootstrap } from "../../nixor/connectSession";
 import { clearNixorPermissionsCache } from "../../nixor/permissions";
 
 const onClickSendDm = (ev: ButtonEvent): void => {
@@ -119,7 +116,9 @@ const NixorConnectSessionGate: React.FC = () => {
             })
             .catch((reason: unknown) => {
                 if (!disposed) {
-                    setError(reason instanceof Error ? reason.message : "Could not establish your secure Connect session.");
+                    setError(
+                        reason instanceof Error ? reason.message : "Could not establish your secure Connect session.",
+                    );
                 }
             });
 
@@ -138,7 +137,11 @@ const NixorConnectSessionGate: React.FC = () => {
     }
 
     if (!ready) {
-        return <div className="mx_NixorWorkspace_state" role="status"><Spinner /> Securing your Connect session…</div>;
+        return (
+            <div className="mx_NixorWorkspace_state" role="status">
+                <Spinner /> Securing your Connect session…
+            </div>
+        );
     }
 
     return <NixorAccountabilityWorkspace />;

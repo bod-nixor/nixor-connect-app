@@ -7,10 +7,7 @@ Please see LICENSE files in the repository root for full details.
 
 import fetchMock from "@fetch-mock/jest";
 
-import {
-    bootstrapNixorConnectSession,
-    type MatrixConnectSessionCredentials,
-} from "../../../src/nixor/connectSession";
+import { bootstrapNixorConnectSession, type MatrixConnectSessionCredentials } from "../../../src/nixor/connectSession";
 
 const credentials: MatrixConnectSessionCredentials = {
     matrixUserId: "@student:connect.nixorcorporate.com",

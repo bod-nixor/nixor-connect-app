@@ -52,9 +52,7 @@ function currentCredentials(): MatrixConnectSessionCredentials {
     return { matrixUserId, matrixAccessToken, matrixDeviceId };
 }
 
-export async function bootstrapNixorConnectSession(
-    credentials: MatrixConnectSessionCredentials,
-): Promise<void> {
+export async function bootstrapNixorConnectSession(credentials: MatrixConnectSessionCredentials): Promise<void> {
     const response = await fetch(`${getNixorConnectApiBaseUrl()}/auth/matrix-session`, {
         method: "POST",
         credentials: "include",
@@ -77,10 +75,7 @@ export async function bootstrapNixorConnectSession(
         );
     }
 
-    if (
-        body.matrix_user_id !== credentials.matrixUserId ||
-        body.matrix_device_id !== credentials.matrixDeviceId
-    ) {
+    if (body.matrix_user_id !== credentials.matrixUserId || body.matrix_device_id !== credentials.matrixDeviceId) {
         throw new Error("The secure Connect session did not match the active Matrix device.");
     }
 }
@@ -95,8 +90,7 @@ export async function ensureNixorConnectSession(force = false): Promise<void> {
     if (inFlightBootstrap && inFlightSessionKey === key) return inFlightBootstrap;
 
     const generation = bootstrapGeneration;
-    let request: Promise<void>;
-    request = bootstrapNixorConnectSession(credentials)
+    const request = bootstrapNixorConnectSession(credentials)
         .then(() => {
             if (generation === bootstrapGeneration) {
                 completedSessionKey = key;
