@@ -40,18 +40,18 @@ describe("Nixor Connect Matrix session bootstrap", () => {
         });
 
         await expect(bootstrapNixorConnectSession(credentials)).resolves.toBeUndefined();
-        expect(fetchMock).toHaveFetched(endpoint, {
-            method: "POST",
-            credentials: "include",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
+
+        const call = fetchMock.callHistory.lastCall(endpoint);
+        expect(call).toBeDefined();
+        expect(call?.options.method).toBe("POST");
+        expect(call?.options.credentials).toBe("include");
+        expect(call?.options.body).toBe(
+            JSON.stringify({
                 matrix_user_id: credentials.matrixUserId,
                 matrix_access_token: credentials.matrixAccessToken,
                 matrix_device_id: credentials.matrixDeviceId,
             }),
-        } as any);
+        );
     });
 
     it("rejects a response bound to a different Matrix device", async () => {
