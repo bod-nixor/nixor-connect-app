@@ -138,6 +138,7 @@ async function requestGovernance<T>(path: string, init: RequestInit = {}): Promi
 
     const response = await fetch(`${baseUrl}${path}`, {
         ...init,
+        credentials: "include",
         headers: {
             ...getGovernanceHeaders(),
             ...(init.headers ?? {}),
