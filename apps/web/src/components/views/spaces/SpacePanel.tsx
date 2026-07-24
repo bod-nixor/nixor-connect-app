@@ -91,9 +91,10 @@ import { useModuleSpacePanelItems } from "../../../modules/ExtrasApi.ts";
 import { UserMenuViewModel } from "../../../viewmodels/menus/UserMenuViewModel.ts";
 import { useMatrixClientContext } from "../../../contexts/MatrixClientContext.tsx";
 import { SDKContext } from "../../../contexts/SDKContext.ts";
-import { canCreateNixorServer } from "../../../nixor/permissions";
+import { canCreateNixorServer, refreshNixorPermissions } from "../../../nixor/permissions";
 import { isNixorGovernanceEnabled } from "../../../nixor/governanceApi";
 import { getNixorIdentity, type NixorIdentity } from "../../../nixor/accountabilityApi";
+import { ensureNixorConnectSession } from "../../../nixor/connectSession";
 import {
     type NixorPrimaryView,
     openNixorPrimaryView,
@@ -244,20 +245,32 @@ const NIXOR_SPACE_NAV_ITEMS: NixorSpaceNavItem[] = [
 ];
 
 const NixorSpaceNavigation: React.FC<{ isPanelCollapsed: boolean }> = ({ isPanelCollapsed }) => {
+    const client = useMatrixClientContext();
+    const matrixUserId = client.getUserId();
+    const matrixDeviceId = client.getDeviceId();
     const activeView = useNixorPrimaryView();
     const [identity, setIdentity] = useState<NixorIdentity | null>(null);
     useEffect(() => {
         let disposed = false;
-        void getNixorIdentity().then((value) => {
-            if (!disposed) setIdentity(value);
-        }).catch(() => undefined);
-        return () => { disposed = true; };
-    }, []);
+        setIdentity(null);
+        void ensureNixorConnectSession()
+            .then(() => getNixorIdentity(true))
+            .then((value) => {
+                if (!disposed && value.identity.matrix_user_id === matrixUserId) setIdentity(value);
+            })
+            .catch(() => undefined);
+        return () => {
+            disposed = true;
+        };
+    }, [matrixUserId, matrixDeviceId]);
     const items = NIXOR_SPACE_NAV_ITEMS.filter((item) => {
         if (item.gate === "case") return identity?.capabilities.some((capability) => capability.startsWith("case."));
         if (item.gate === "admin") {
-            return identity?.capabilities.some((capability) =>
-                capability === "audit.view" || capability === "support.identity" || capability.startsWith("developer."),
+            return identity?.capabilities.some(
+                (capability) =>
+                    capability === "audit.view" ||
+                    capability === "support.identity" ||
+                    capability.startsWith("developer."),
             );
         }
         return true;
@@ -278,7 +291,7 @@ const NixorSpaceNavigation: React.FC<{ isPanelCollapsed: boolean }> = ({ isPanel
                         size="32px"
                         isNarrow={isPanelCollapsed}
                         selected={item.id === activeView}
-                        onClick={() => item.id === "settings" ? openNixorSettings() : openNixorPrimaryView(item.id)}
+                        onClick={() => (item.id === "settings" ? openNixorSettings() : openNixorPrimaryView(item.id))}
                     />
                 </li>
             ))}
@@ -318,13 +331,30 @@ const CreateSpaceButton: React.FC<Pick<IInnerSpacePanelProps, "isPanelCollapsed"
     isPanelCollapsed,
     setPanelCollapsed,
 }) => {
+    const client = useMatrixClientContext();
+    const matrixUserId = client.getUserId();
+    const matrixDeviceId = client.getDeviceId();
+    const [canCreateServer, setCanCreateServer] = useState(false);
     const [menuDisplayed, handle, openMenu, closeMenu] = useContextMenu<HTMLDivElement>();
+
+    useEffect(() => {
+        let disposed = false;
+        setCanCreateServer(false);
+        void refreshNixorPermissions(true).then((permissions) => {
+            if (!disposed) setCanCreateServer(permissions.can_create_servers);
+        });
+        return () => {
+            disposed = true;
+        };
+    }, [matrixUserId, matrixDeviceId]);
 
     useEffect(() => {
         if (!isPanelCollapsed && menuDisplayed) {
             closeMenu();
         }
     }, [isPanelCollapsed]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    if (!canCreateServer) return null;
 
     let contextMenu: JSX.Element | undefined;
     if (menuDisplayed) {

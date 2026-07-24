@@ -6,6 +6,7 @@ Please see LICENSE files in the repository root for full details.
 */
 
 import SdkConfig from "../SdkConfig";
+import { requestNixorConnect } from "./accountabilityApi";
 
 interface NixorConfig {
     governance_api_base_url?: string;
@@ -97,61 +98,36 @@ interface ServerModeratorsResponse {
     server?: NixorServer;
 }
 
-interface ErrorResponse {
-    ok?: false;
-    error?: string;
-}
-
 function getNixorConfig(): NixorConfig | undefined {
     return SdkConfig.get()?.nixor as NixorConfig | undefined;
 }
 
-function getGovernanceBaseUrl(): string {
+function getGovernanceHeaders(): HeadersInit {
+    const nixorConfig = getNixorConfig();
+
+    return nixorConfig?.dev_governance_api_token
+        ? { Authorization: `Bearer ${nixorConfig.dev_governance_api_token}` }
+        : {};
+}
+
+async function requestGovernance<T>(path: string, init: RequestInit = {}): Promise<T> {
     const nixorConfig = getNixorConfig();
 
     if (!nixorConfig?.governance_enabled) {
         throw new Error("Nixor Governance API is disabled");
     }
 
-    const baseUrl = nixorConfig.governance_api_base_url?.replace(/\/$/, "");
-
-    if (!baseUrl) {
-        throw new Error("Missing nixor.governance_api_base_url in config.json");
-    }
-
-    return baseUrl;
-}
-
-function getGovernanceHeaders(): HeadersInit {
-    const nixorConfig = getNixorConfig();
-
-    return {
-        "Content-Type": "application/json",
-        ...(nixorConfig?.dev_governance_api_token
-            ? { Authorization: `Bearer ${nixorConfig.dev_governance_api_token}` }
-            : {}),
-    };
-}
-
-async function requestGovernance<T>(path: string, init: RequestInit = {}): Promise<T> {
-    const baseUrl = getGovernanceBaseUrl();
-
-    const response = await fetch(`${baseUrl}${path}`, {
-        ...init,
-        headers: {
-            ...getGovernanceHeaders(),
-            ...(init.headers ?? {}),
+    return requestNixorConnect<T>(
+        path,
+        {
+            ...init,
+            headers: {
+                ...getGovernanceHeaders(),
+                ...(init.headers ?? {}),
+            },
         },
-    });
-
-    const body = (await response.json().catch(() => ({}))) as ErrorResponse | T;
-
-    if (!response.ok) {
-        const errorBody = body as ErrorResponse;
-        throw new Error(errorBody.error || `Governance API request failed with status ${response.status}`);
-    }
-
-    return body as T;
+        { skipCsrfBootstrap: Boolean(nixorConfig.dev_governance_api_token) },
+    );
 }
 
 export async function getServerBySpaceId(spaceId: string): Promise<NixorServer> {

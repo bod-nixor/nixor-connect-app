@@ -7,7 +7,7 @@ Please see LICENSE files in the repository root for full details.
 */
 
 import React, { type JSX } from "react";
-import { useContext, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { ChatSolidIcon, ExploreIcon, GroupIcon } from "@vector-im/compound-design-tokens/assets/web/icons";
 
 import AutoHideScrollbar from "./AutoHideScrollbar";
@@ -19,6 +19,7 @@ import { Action } from "../../dispatcher/actions";
 import BaseAvatar from "../views/avatars/BaseAvatar";
 import { OwnProfileStore } from "../../stores/OwnProfileStore";
 import AccessibleButton, { type ButtonEvent } from "../views/elements/AccessibleButton";
+import Spinner from "../views/elements/Spinner";
 import { UPDATE_EVENT } from "../../stores/AsyncStore";
 import { useEventEmitter } from "../../hooks/useEventEmitter";
 import MatrixClientContext, { useMatrixClientContext } from "../../contexts/MatrixClientContext";
@@ -28,6 +29,9 @@ import EmbeddedPage from "./EmbeddedPage";
 import NixorBotDirectory from "../views/bots/NixorBotDirectory";
 import NixorAccountabilityWorkspace from "../views/accountability/NixorAccountabilityWorkspace";
 import { isNixorGovernanceEnabled } from "../../nixor/governanceApi";
+import { clearNixorApiSession } from "../../nixor/accountabilityApi";
+import { ensureNixorConnectSession, resetNixorConnectSessionBootstrap } from "../../nixor/connectSession";
+import { clearNixorPermissionsCache } from "../../nixor/permissions";
 
 const onClickSendDm = (ev: ButtonEvent): void => {
     PosthogTrackers.trackInteraction("WebHomeCreateChatButton", ev);
@@ -90,6 +94,59 @@ const UserWelcomeTop: React.FC = () => {
     );
 };
 
+const NixorConnectSessionGate: React.FC = () => {
+    const cli = useMatrixClientContext();
+    const matrixUserId = cli.getUserId();
+    const matrixDeviceId = cli.getDeviceId();
+    const [attempt, setAttempt] = useState(0);
+    const [ready, setReady] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        let disposed = false;
+        setReady(false);
+        setError(null);
+        resetNixorConnectSessionBootstrap();
+        clearNixorApiSession();
+        clearNixorPermissionsCache();
+
+        void ensureNixorConnectSession(true)
+            .then(() => {
+                if (!disposed) setReady(true);
+            })
+            .catch((reason: unknown) => {
+                if (!disposed) {
+                    setError(
+                        reason instanceof Error ? reason.message : "Could not establish your secure Connect session.",
+                    );
+                }
+            });
+
+        return () => {
+            disposed = true;
+        };
+    }, [matrixUserId, matrixDeviceId, attempt]);
+
+    if (error) {
+        return (
+            <div className="mx_NixorWorkspace_state mx_NixorWorkspace_error" role="alert">
+                <p>{error}</p>
+                <AccessibleButton onClick={() => setAttempt((value) => value + 1)}>Try again</AccessibleButton>
+            </div>
+        );
+    }
+
+    if (!ready) {
+        return (
+            <div className="mx_NixorWorkspace_state" role="status">
+                <Spinner /> Securing your Connect session…
+            </div>
+        );
+    }
+
+    return <NixorAccountabilityWorkspace />;
+};
+
 const HomePage: React.FC<IProps> = ({ justRegistered = false }) => {
     const cli = useMatrixClientContext();
     const config = SdkConfig.get();
@@ -98,7 +155,7 @@ const HomePage: React.FC<IProps> = ({ justRegistered = false }) => {
     if (isNixorGovernanceEnabled()) {
         return (
             <AutoHideScrollbar className="mx_HomePage mx_HomePage_nixor" element="div">
-                <NixorAccountabilityWorkspace />
+                <NixorConnectSessionGate />
             </AutoHideScrollbar>
         );
     }

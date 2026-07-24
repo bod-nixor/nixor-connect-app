@@ -7,7 +7,31 @@ Please see LICENSE files in the repository root for full details.
 */
 
 import type { LifecycleCustomisations } from "@element-hq/element-web-module-api";
+import SdkConfig from "../SdkConfig";
+import { clearNixorApiSession } from "../nixor/accountabilityApi";
+import { resetNixorConnectSessionBootstrap } from "../nixor/connectSession";
+import { clearNixorPermissionsCache } from "../nixor/permissions";
+import { getNixorConnectApiBaseUrl } from "../nixor/sso";
 
-// A real customisation module will define and export one or more of the
-// customisation points that make up `ILifecycleCustomisations`.
-export default {} as LifecycleCustomisations;
+const lifecycleCustomisations: LifecycleCustomisations = {
+    onLoggedOutAndStorageCleared: () => {
+        clearNixorApiSession();
+        clearNixorPermissionsCache();
+        resetNixorConnectSessionBootstrap();
+
+        const nixorConfig = SdkConfig.get()?.nixor as
+            | {
+                  governance_enabled?: boolean;
+                  google_sso_enabled?: boolean;
+              }
+            | undefined;
+        if (!nixorConfig?.governance_enabled && !nixorConfig?.google_sso_enabled) return;
+
+        void fetch(`${getNixorConnectApiBaseUrl()}/auth/logout`, {
+            method: "POST",
+            credentials: "include",
+        }).catch(() => undefined);
+    },
+};
+
+export default lifecycleCustomisations;
