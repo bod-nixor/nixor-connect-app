@@ -15,6 +15,7 @@ import { shouldPolyfill as shouldPolyFillIntlSegmenter } from "@formatjs/intl-se
 
 // These are things that can run before the skin loads - be careful not to reference the react-sdk though.
 import { parseAppUrl } from "./url_utils";
+import { isNativeCapacitorShell } from "./mobile_platform";
 import "./modernizr.cjs";
 
 // Import shared components CSS
@@ -147,7 +148,7 @@ async function start(): Promise<void> {
         if (!preventRedirect) {
             const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
             const isAndroid = /Android/.test(navigator.userAgent);
-            if (isIos || isAndroid) {
+            if ((isIos || isAndroid) && !isNativeCapacitorShell(window)) {
                 if (document.cookie.indexOf("element_mobile_redirect_to_guide=false") === -1) {
                     window.location.href = "mobile_guide/";
                     return;
