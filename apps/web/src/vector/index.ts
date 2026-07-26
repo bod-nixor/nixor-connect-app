@@ -15,6 +15,7 @@ import { shouldPolyfill as shouldPolyFillIntlSegmenter } from "@formatjs/intl-se
 
 // These are things that can run before the skin loads - be careful not to reference the react-sdk though.
 import { parseAppUrl } from "./url_utils";
+import { hasRequiredBrowserFeatures } from "./browserFeatureChecks";
 import { isNativeCapacitorShell } from "./mobile_platform";
 import { registerNativeGoogleOAuthCallback } from "../nixor/mobileOAuth";
 import "./modernizr.cjs";
@@ -41,64 +42,7 @@ async function settled(...promises: Array<Promise<any>>): Promise<void> {
     }
 }
 
-function checkBrowserFeatures(): boolean {
-    if (!window.Modernizr) {
-        logger.error("Cannot check features - Modernizr global is missing.");
-        return false;
-    }
-
-    // Custom checks atop Modernizr because it doesn't have checks in it for
-    // some features we depend on.
-    // Modernizr requires rules to be lowercase with no punctuation.
-    // ES2018: http://262.ecma-international.org/9.0/#sec-promise.prototype.finally
-    window.Modernizr.addTest("promiseprototypefinally", () => typeof window.Promise?.prototype?.finally === "function");
-    // ES2020: http://262.ecma-international.org/#sec-promise.allsettled
-    window.Modernizr.addTest("promiseallsettled", () => typeof window.Promise?.allSettled === "function");
-    // ES2024: https://2ality.com/2024/05/proposal-promise-with-resolvers.html
-    window.Modernizr.addTest("promisewithresolvers", () => typeof window.Promise?.withResolvers === "function");
-    // ES2018: https://262.ecma-international.org/9.0/#sec-get-regexp.prototype.dotAll
-    window.Modernizr.addTest(
-        "regexpdotall",
-        () => window.RegExp?.prototype && !!Object.getOwnPropertyDescriptor(window.RegExp.prototype, "dotAll")?.get,
-    );
-    // ES2019: http://262.ecma-international.org/10.0/#sec-object.fromentries
-    window.Modernizr.addTest("objectfromentries", () => typeof window.Object?.fromEntries === "function");
-    // ES2024: https://402.ecma-international.org/9.0/#sec-intl.segmenter
-    // The built-in modernizer 'intl' check only checks for the presence of the Intl object, not the Segmenter,
-    // and older Firefox has the former but not the latter, so we add our own.
-    // This is polyfilled now, but we still want to show the warning because we want to remove the polyfill
-    // at some point.
-    window.Modernizr.addTest("intlsegmenter", () => typeof window.Intl?.Segmenter === "function");
-
-    // Basic test for WebAssembly support. We could also try instantiating a simple module,
-    // although this would start to make (more) assumptions about how rust-crypto loads its wasm.
-    window.Modernizr.addTest("wasm", () => typeof WebAssembly === "object" && typeof WebAssembly.Module === "function");
-
-    // Check that the session is in a secure context otherwise most Crypto & WebRTC APIs will be unavailable
-    // https://developer.mozilla.org/en-US/docs/Web/API/Window/isSecureContext
-    window.Modernizr.addTest("securecontext", () => window.isSecureContext);
-
-    const featureList = Object.keys(window.Modernizr) as Array<keyof ModernizrStatic>;
-
-    let featureComplete = true;
-    for (const feature of featureList) {
-        if (window.Modernizr[feature] === undefined) {
-            logger.error(
-                "Looked for feature '%s' but Modernizr has no results for this. " + "Has it been configured correctly?",
-                feature,
-            );
-            return false;
-        }
-        if (window.Modernizr[feature] === false) {
-            logger.error("Browser missing feature: '%s'", feature);
-            // toggle flag rather than return early so we log all missing features rather than just the first.
-            featureComplete = false;
-        }
-    }
-    return featureComplete;
-}
-
-const supportedBrowser = checkBrowserFeatures();
+const supportedBrowser = hasRequiredBrowserFeatures(window);
 registerNativeGoogleOAuthCallback();
 
 // React depends on Map & Set which we check for using modernizr's es6collections

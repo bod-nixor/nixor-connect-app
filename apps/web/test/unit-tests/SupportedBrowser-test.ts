@@ -19,6 +19,7 @@ describe("SupportedBrowser", () => {
         jest.resetAllMocks();
         localStorage.clear();
         getBrowserSupport.clear();
+        Object.defineProperty(window, "Capacitor", { value: undefined, writable: true, configurable: true });
     });
 
     const testUserAgentFactory =
@@ -45,6 +46,26 @@ describe("SupportedBrowser", () => {
         // Opera on Samsung
         "Mozilla/5.0 (Linux; Android 10; SM-G970F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.6533.64 Mobile Safari/537.36 OPR/76.2.4027.73374",
     ])("should warn for mobile browsers", testUserAgentFactory("Browser unsupported, unsupported device type"));
+
+    it("does not show the soft user-agent warning in the native Capacitor shell", () => {
+        const toastSpy = jest.spyOn(ToastStore.sharedInstance(), "addOrReplaceToast");
+        Object.defineProperty(window, "navigator", {
+            value: {
+                userAgent:
+                    "Mozilla/5.0 (Linux; Android 14; SM-S711B) AppleWebKit/537.36 Chrome/126.0.0.0 Mobile Safari/537.36",
+            },
+            writable: true,
+        });
+        Object.defineProperty(window, "Capacitor", {
+            value: { isNativePlatform: () => true },
+            writable: true,
+            configurable: true,
+        });
+
+        checkBrowserSupport();
+
+        expect(toastSpy).not.toHaveBeenCalled();
+    });
 
     it.each([
         // Chrome on Chrome OS

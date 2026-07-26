@@ -16,6 +16,7 @@ import ToastStore from "./stores/ToastStore";
 import GenericToast from "./components/views/toasts/GenericToast";
 import { _t } from "./languageHandler";
 import SdkConfig from "./SdkConfig";
+import { isNativeCapacitorShell } from "./vector/mobile_platform";
 
 export const LOCAL_STORAGE_KEY = "mx_accepts_unsupported_browser";
 const TOAST_KEY = "unsupportedbrowser";
@@ -42,6 +43,11 @@ function getBrowserNameVersion(browser: string): [name: string, version: number]
 }
 
 function calculateBrowserSupport(): boolean {
+    // Capacitor is a controlled native-shell contract. Its feature checks still
+    // run during bootstrap; this only suppresses the advisory user-agent policy
+    // which intentionally classifies ordinary mobile browsers as unsupported.
+    if (isNativeCapacitorShell(window)) return true;
+
     const browsers = browserlist(SUPPORTED_BROWSER_QUERY).sort();
     const minimumBrowserVersions = new Map<string, number>();
     for (const browser of browsers) {
