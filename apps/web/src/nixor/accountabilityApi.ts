@@ -6,6 +6,7 @@ Please see LICENSE files in the repository root for full details.
 */
 
 import { getNixorConnectApiBaseUrl } from "./sso";
+import { ensureNixorConnectSession } from "./connectSession";
 
 export interface NixorIdentity {
     identity: {
@@ -551,7 +552,7 @@ async function fetchWithTimeout(url: string, init: RequestInit): Promise<Respons
 export async function requestNixorConnect<T>(
     path: string,
     init: RequestInit = {},
-    options: { skipCsrfBootstrap?: boolean } = {},
+    options: { skipCsrfBootstrap?: boolean; sessionRepairAttempted?: boolean } = {},
 ): Promise<T> {
     if (typeof navigator !== "undefined" && navigator.onLine === false) {
         throw new NixorApiError(publicErrorMessage("offline", 0), "offline", 0);
@@ -585,7 +586,23 @@ export async function requestNixorConnect<T>(
 
     const body = (await response.json().catch(() => ({}))) as ApiErrorEnvelope | T;
     if (!response.ok) {
-        if (response.status === 401) cachedIdentity = null;
+        if (response.status === 401 && !options.sessionRepairAttempted) {
+            // The Matrix device session can still be valid after a Connect cookie expires or is
+            // cleared. Repair only the Connect session, then replay this request once. The
+            // bootstrap module deduplicates concurrent callers for the active Matrix device.
+            clearNixorApiSession();
+            try {
+                await ensureNixorConnectSession(true);
+                return await requestNixorConnect<T>(path, init, {
+                    ...options,
+                    sessionRepairAttempted: true,
+                });
+            } catch {
+                // Preserve the original API response below: it has the most useful status and
+                // correlation ID without exposing any Matrix credential details.
+            }
+        }
+        if (response.status === 401) clearNixorApiSession();
         const errorBody = body as ApiErrorEnvelope;
         const code = typeof errorBody.error === "string" ? errorBody.error : `http_${response.status}`;
         const correlationId = response.headers.get("X-Correlation-ID") ?? errorBody.meta?.correlation_id;
@@ -1139,15 +1156,28 @@ export async function createReport(input: CreateReportInput): Promise<{
     public_id: string;
     report_number: string;
     status: string;
+    evidence: Array<{
+        public_id: string;
+        canonical_hash: string;
+        context_before: number;
+        context_after: number;
+    }>;
     emergency_guidance?: string;
 }> {
     const response = await requestNixorConnect<ApiEnvelope<{
         public_id: string;
         report_number: string;
         status: string;
+        evidence: Array<{
+            public_id: string;
+            canonical_hash: string;
+            context_before: number;
+            context_after: number;
+        }>;
         emergency_guidance?: string;
     }>>("/api/v1/reports", {
         method: "POST",
+        headers: { "Idempotency-Key": crypto.randomUUID() },
         body: JSON.stringify({
             urgency: "normal",
             confidentiality: "standard",
