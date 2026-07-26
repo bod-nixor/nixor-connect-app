@@ -358,7 +358,7 @@ const CreateActionForm: React.FC<{ identity: NixorIdentity; onCreated: () => Pro
     const [peopleQuery, setPeopleQuery] = useState("");
     const [resourceKey, setResourceKey] = useState("");
     const [optionsLoading, setOptionsLoading] = useState(false);
-    const creationIntentKey = useRef<string | null>(null);
+    const creationIntent = useRef<{ key: string; payloadFingerprint: string } | null>(null);
     useEffect(() => { void listActionOptions().then(setOptions).catch(() => undefined); }, []);
     useEffect(() => {
         if (!resourceKey || peopleQuery.trim().length < 2) return;
@@ -369,23 +369,30 @@ const CreateActionForm: React.FC<{ identity: NixorIdentity; onCreated: () => Pro
         event.preventDefault(); setBusy(true); setError(null); setCreated(false);
         const formElement = event.currentTarget;
         const form = new FormData(formElement);
+        const input = {
+            title: formValue(form, "title"), description: formValue(form, "description"),
+            assignee_refs: [{ identity_ref: formValue(form, "assignee"), role: "assignee" as const }],
+            acceptance_reviewer_ref: formValue(form, "reviewer") || undefined,
+            resource_key: resourceKey || undefined,
+            priority: formValue(form, "priority") as "low" | "normal" | "high" | "critical",
+            category: formValue(form, "category", "general"),
+            due_at: toIsoDateTime(formValue(form, "due_at")),
+            due_timezone: formValue(form, "timezone", "Asia/Karachi"),
+            evidence_requirements: formValue(form, "evidence_requirements").split(/\r?\n/).map((value) => value.trim()).filter(Boolean),
+            dependencies: formValue(form, "dependency") ? [formValue(form, "dependency")] : [],
+            watcher_refs: formValue(form, "watcher") ? [formValue(form, "watcher")] : [],
+            assignment_reason: "Created through the Nixor Connect accountability workspace",
+        };
+        const payloadFingerprint = JSON.stringify(input);
+        if (!creationIntent.current || creationIntent.current.payloadFingerprint !== payloadFingerprint) {
+            creationIntent.current = { key: crypto.randomUUID(), payloadFingerprint };
+        }
         try {
             const result = await createActionItem({
-                title: formValue(form, "title"), description: formValue(form, "description"),
-                assignee_refs: [{ identity_ref: formValue(form, "assignee"), role: "assignee" }],
-                acceptance_reviewer_ref: formValue(form, "reviewer") || undefined,
-                resource_key: resourceKey || undefined,
-                priority: formValue(form, "priority") as "low" | "normal" | "high" | "critical",
-                category: formValue(form, "category", "general"),
-                due_at: toIsoDateTime(formValue(form, "due_at")),
-                due_timezone: formValue(form, "timezone", "Asia/Karachi"),
-                evidence_requirements: formValue(form, "evidence_requirements").split(/\r?\n/).map((value) => value.trim()).filter(Boolean),
-                dependencies: formValue(form, "dependency") ? [formValue(form, "dependency")] : [],
-                watcher_refs: formValue(form, "watcher") ? [formValue(form, "watcher")] : [],
-                idempotency_key: creationIntentKey.current ??= crypto.randomUUID(),
-                assignment_reason: "Created through the Nixor Connect accountability workspace",
+                ...input,
+                idempotency_key: creationIntent.current.key,
             });
-            creationIntentKey.current = null;
+            creationIntent.current = null;
             setCreated(true); formElement.reset(); await onCreated();
         } catch (reason) { setError(reason instanceof Error ? reason.message : "Action item was not created."); }
         finally { setBusy(false); }
