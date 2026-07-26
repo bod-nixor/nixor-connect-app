@@ -1,0 +1,10 @@
+{
+  "appId": "com.nixorcorporate.connect",
+  "appName": "Nixor Connect",
+  "webDir": "../apps/web/webapp",
+  "plugins": {
+    "CapacitorCookies": {
+      "enabled": true
+    }
+  }
+}
