@@ -586,7 +586,7 @@ export async function requestNixorConnect<T>(
 
     const body = (await response.json().catch(() => ({}))) as ApiErrorEnvelope | T;
     if (!response.ok) {
-        if (response.status === 401 && !options.sessionRepairAttempted) {
+        if (response.status === 401 && !options.sessionRepairAttempted && isSafeSessionRepairRetry(init)) {
             // The Matrix device session can still be valid after a Connect cookie expires or is
             // cleared. Repair only the Connect session, then replay this request once. The
             // bootstrap module deduplicates concurrent callers for the active Matrix device.
@@ -609,6 +609,16 @@ export async function requestNixorConnect<T>(
         throw new NixorApiError(publicErrorMessage(code, response.status), code, response.status, correlationId);
     }
     return body as T;
+}
+
+/**
+ * A 401 does not prove whether a mutation reached an upstream handler. Never
+ * replay a state-changing request automatically: repair the cookie on a safe
+ * read, then let the user explicitly submit the mutation again.
+ */
+export function isSafeSessionRepairRetry(init: RequestInit): boolean {
+    const method = (init.method ?? "GET").toUpperCase();
+    return method === "GET" || method === "HEAD" || method === "OPTIONS";
 }
 
 export async function getNixorIdentity(force = false): Promise<NixorIdentity> {
