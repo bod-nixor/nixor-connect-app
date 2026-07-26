@@ -926,11 +926,12 @@ export interface CreateActionInput {
     watcher_refs?: string[];
     acceptance_reviewer_ref?: string;
     escalation_policy_key?: string;
+    idempotency_key: string;
     assignment_reason: string;
 }
 
-export async function createActionItem(input: CreateActionInput): Promise<{ public_id: string; status: string }> {
-    const response = await requestNixorConnect<ApiEnvelope<{ public_id: string; status: string }>>(
+export async function createActionItem(input: CreateActionInput): Promise<{ public_id: string; status: string; replayed: boolean }> {
+    const response = await requestNixorConnect<ApiEnvelope<{ public_id: string; status: string; replayed: boolean }>>(
         "/api/v1/action-items",
         {
             method: "POST",

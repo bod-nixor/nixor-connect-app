@@ -358,6 +358,7 @@ const CreateActionForm: React.FC<{ identity: NixorIdentity; onCreated: () => Pro
     const [peopleQuery, setPeopleQuery] = useState("");
     const [resourceKey, setResourceKey] = useState("");
     const [optionsLoading, setOptionsLoading] = useState(false);
+    const creationIntentKey = useRef<string | null>(null);
     useEffect(() => { void listActionOptions().then(setOptions).catch(() => undefined); }, []);
     useEffect(() => {
         if (!resourceKey || peopleQuery.trim().length < 2) return;
@@ -365,7 +366,7 @@ const CreateActionForm: React.FC<{ identity: NixorIdentity; onCreated: () => Pro
         return () => window.clearTimeout(timer);
     }, [peopleQuery, resourceKey]);
     const submit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
-        event.preventDefault(); setBusy(true); setError(null); setCreated(null);
+        event.preventDefault(); setBusy(true); setError(null); setCreated(false);
         const formElement = event.currentTarget;
         const form = new FormData(formElement);
         try {
@@ -381,8 +382,10 @@ const CreateActionForm: React.FC<{ identity: NixorIdentity; onCreated: () => Pro
                 evidence_requirements: formValue(form, "evidence_requirements").split(/\r?\n/).map((value) => value.trim()).filter(Boolean),
                 dependencies: formValue(form, "dependency") ? [formValue(form, "dependency")] : [],
                 watcher_refs: formValue(form, "watcher") ? [formValue(form, "watcher")] : [],
+                idempotency_key: creationIntentKey.current ??= crypto.randomUUID(),
                 assignment_reason: "Created through the Nixor Connect accountability workspace",
             });
+            creationIntentKey.current = null;
             setCreated(true); formElement.reset(); await onCreated();
         } catch (reason) { setError(reason instanceof Error ? reason.message : "Action item was not created."); }
         finally { setBusy(false); }
