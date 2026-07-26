@@ -40,7 +40,7 @@ describe("Nixor Connect Matrix session bootstrap", () => {
 
         const call = fetchMock.callHistory.lastCall(endpoint);
         expect(call).toBeDefined();
-        expect(call?.options.method).toBe("POST");
+        expect(call?.options.method?.toUpperCase()).toBe("POST");
         expect(call?.options.credentials).toBe("include");
         expect(call?.options.body).toBe(
             JSON.stringify({
