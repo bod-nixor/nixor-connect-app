@@ -287,6 +287,15 @@ export async function attemptDelegatedAuthLogin(
         return attemptNixorConnectLogin();
     }
 
+    if (urlParams.nixor_mobile?.nixor_mobile_error) {
+        storeNixorSsoError(urlParams.nixor_mobile.nixor_mobile_error);
+        return false;
+    }
+
+    if (urlParams.nixor_mobile?.nixor_mobile_code) {
+        return attemptNixorConnectMobileLogin(urlParams.nixor_mobile.nixor_mobile_code);
+    }
+
     if (urlParams.oidc_fragment) {
         return attemptOidcNativeLogin(urlParams.oidc_fragment, "fragment");
     } else if (urlParams.oidc_query) {
@@ -384,6 +393,24 @@ async function attemptNixorConnectLogin(): Promise<boolean> {
                 ? NIXOR_CONNECT_DEVICE_SESSION_ERROR
                 : "Nixor Connect sign-in failed. Please try again.",
         );
+        return false;
+    }
+}
+
+async function attemptNixorConnectMobileLogin(code: string): Promise<boolean> {
+    try {
+        const response = await fetch(`${getNixorConnectApiBaseUrl()}/auth/mobile/exchange`, {
+            method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }),
+        });
+        const body = (await response.json().catch(() => ({}))) as NixorConnectSessionResponse;
+        if (!response.ok || body.ok !== true || !isNonEmptyString(body.matrix_user_id) || !isNonEmptyString(body.matrix_access_token) || !isNonEmptyString(body.matrix_device_id) || !isNonEmptyString(body.homeserver_url) || !isValidUrlString(body.homeserver_url)) {
+            throw new Error(body.error || `Nixor Connect mobile exchange failed: ${response.status}`);
+        }
+        await onSuccessfulDelegatedAuthLogin({ userId: body.matrix_user_id, accessToken: body.matrix_access_token, deviceId: body.matrix_device_id, homeserverUrl: body.homeserver_url, identityServerUrl: SdkConfig.get("validated_server_config")?.isUrl, guest: false });
+        return true;
+    } catch (error) {
+        logger.error("Failed to exchange Nixor Connect mobile handoff", error);
+        onFailedDelegatedAuthLogin("Nixor Connect sign-in failed. Please try again.");
         return false;
     }
 }

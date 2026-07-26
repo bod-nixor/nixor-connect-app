@@ -38,6 +38,7 @@ import {
     getNixorSsoErrorText,
     isNixorGoogleSsoEnabled,
 } from "../../../nixor/sso";
+import { startNativeGoogleOAuth } from "../../../nixor/mobileOAuth";
 
 interface IProps {
     serverConfig: ValidatedServerConfig;
@@ -313,7 +314,9 @@ class LoginComponent extends React.PureComponent<IProps, IState> {
 
     private onNixorGoogleLoginClick = (): void => {
         clearStoredNixorSsoError();
-        window.location.href = `${getNixorConnectApiBaseUrl()}/auth/google/start`;
+        void startNativeGoogleOAuth().then((opened) => {
+            if (!opened) window.location.href = `${getNixorConnectApiBaseUrl()}/auth/google/start`;
+        }).catch((error) => logger.error("Failed to open native Google sign-in", error));
     };
 
     private renderNixorGoogleSsoStep = (): React.ReactNode => {

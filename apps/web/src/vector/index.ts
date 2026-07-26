@@ -16,6 +16,7 @@ import { shouldPolyfill as shouldPolyFillIntlSegmenter } from "@formatjs/intl-se
 // These are things that can run before the skin loads - be careful not to reference the react-sdk though.
 import { parseAppUrl } from "./url_utils";
 import { isNativeCapacitorShell } from "./mobile_platform";
+import { registerNativeGoogleOAuthCallback } from "../nixor/mobileOAuth";
 import "./modernizr.cjs";
 
 // Import shared components CSS
@@ -98,6 +99,7 @@ function checkBrowserFeatures(): boolean {
 }
 
 const supportedBrowser = checkBrowserFeatures();
+registerNativeGoogleOAuthCallback();
 
 // React depends on Map & Set which we check for using modernizr's es6collections
 // if modernizr fails we may not have a functional react to show the error message.

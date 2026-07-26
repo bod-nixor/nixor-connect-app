@@ -358,7 +358,8 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
             !!this.props.urlParams.legacy_sso ||
             !!this.props.urlParams.oidc_fragment ||
             !!this.props.urlParams.oidc_query ||
-            !!this.props.urlParams.nixor_sso
+            !!this.props.urlParams.nixor_sso ||
+            !!this.props.urlParams.nixor_mobile
         ) {
             this.props.onTokenLoginCompleted(this.props.urlParams, this.getFragmentAfterLogin());
         }

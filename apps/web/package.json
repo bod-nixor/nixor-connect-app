@@ -37,6 +37,8 @@
         "analyse:webpack-bundles": "webpack-bundle-analyzer webpack-stats.json webapp"
     },
     "dependencies": {
+        "@capacitor/app": "8.1.0",
+        "@capacitor/browser": "8.0.3",
         "@babel/runtime": "^7.12.5",
         "@element-hq/element-web-module-api": "workspace:*",
         "@element-hq/web-shared-components": "workspace:*",

@@ -33,6 +33,7 @@ import { ModuleApi } from "../modules/Api";
 import { RoomView } from "../components/structures/RoomView";
 import RoomAvatar from "../components/views/avatars/RoomAvatar";
 import { ModuleNotificationDecoration } from "../modules/components/ModuleNotificationDecoration";
+import { isNativeCapacitorShell } from "./mobile_platform";
 import Login from "../Login.ts";
 import { startOidcLogin } from "../utils/oidc/authorize.ts";
 
@@ -44,7 +45,7 @@ function onTokenLoginCompleted(urlParams: URLParams, fragmentAfterLogin: string)
     const url = new URL(window.location.href);
 
     // if we did a token login, we're now left with the login token as query param in the url; clear it out
-    for (const param in { ...urlParams.legacy_sso, ...urlParams.oidc_query, ...urlParams.nixor_sso }) {
+    for (const param in { ...urlParams.legacy_sso, ...urlParams.oidc_query, ...urlParams.nixor_sso, ...urlParams.nixor_mobile }) {
         url.searchParams.delete(param);
     }
 
@@ -103,7 +104,10 @@ export async function loadApp(urlParams: URLParams, matrixChatRef: React.Ref<Mat
     const urlWithoutQuery = window.location.protocol + "//" + window.location.host + window.location.pathname;
     logger.log("Vector starting at " + urlWithoutQuery);
 
-    platform?.startUpdater();
+    // Capacitor assets are updated by the signed APK. Running the web updater
+    // against https://localhost misinterprets the local index as a version and
+    // can leave the app on a broken ?updated= URL.
+    if (!isNativeCapacitorShell(window)) platform?.startUpdater();
 
     // Don't bother loading the app until the config is verified
     const config = await verifyServerConfig();
@@ -113,7 +117,7 @@ export async function loadApp(urlParams: URLParams, matrixChatRef: React.Ref<Mat
     const [userId] = await Lifecycle.getStoredSessionOwner();
     const hasPossibleToken = !!userId;
     const isReturningFromSso =
-        !!urlParams.legacy_sso || !!urlParams.oidc_fragment || !!urlParams.oidc_query || !!urlParams.nixor_sso;
+        !!urlParams.legacy_sso || !!urlParams.oidc_fragment || !!urlParams.oidc_query || !!urlParams.nixor_sso || !!urlParams.nixor_mobile;
     const ssoRedirects = config.sso_redirect_options || {};
     let autoRedirect = ssoRedirects.immediate === true;
     // XXX: This path matching is a bit brittle, but better to do it early instead of in the app code.

@@ -69,6 +69,10 @@ const urlParameterConfig = {
         keys: ["nixor_sso", "nixor_sso_error"],
         location: "query",
     },
+    nixor_mobile: {
+        keys: ["nixor_mobile_code", "nixor_mobile_error"],
+        location: "query",
+    },
     // Fragment params relating to 3pid (email) invites, added in url within the invite email itself
     threepid: {
         keys: ["client_secret", "session_id", "hs_url", "is_url", "sid"],
