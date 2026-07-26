@@ -18,6 +18,9 @@ import { IgnoreToggleButton } from "./UserInfoIgnoreButtonView";
 import Spinner from "../../elements/Spinner";
 import { UserInfoAdminToolsContainer } from "./UserInfoAdminToolsContainer";
 import { UserInfoBasicOptionsView } from "./UserInfoBasicOptionsView";
+import AccessibleButton from "../../elements/AccessibleButton";
+import Modal from "../../../../Modal";
+import NixorUserReportDialog from "../../dialogs/NixorUserReportDialog";
 
 /**
  * There are two types of components that can be displayed in the right panel concerning userinfo
@@ -84,6 +87,15 @@ export const UserInfoBasicView: React.FC<{
             {adminToolsContainer}
             {!vm.isMe && (
                 <Container>
+                    <AccessibleButton
+                        className="mx_UserInfo_wideButton"
+                        onClick={() => Modal.createDialog(NixorUserReportDialog, {
+                            userId: member.userId,
+                            displayName: member.name || "Nixor member",
+                        })}
+                    >
+                        Report user
+                    </AccessibleButton>
                     <IgnoreToggleButton member={member} />
                 </Container>
             )}

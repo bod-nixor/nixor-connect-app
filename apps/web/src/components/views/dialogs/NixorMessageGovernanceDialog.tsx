@@ -10,6 +10,7 @@ import { type MatrixEvent } from "matrix-js-sdk/src/matrix";
 
 import BaseDialog from "./BaseDialog";
 import AccessibleButton from "../elements/AccessibleButton";
+import { MatrixClientPeg } from "../../../MatrixClientPeg";
 import {
     createActionItem,
     createReport,
@@ -43,6 +44,8 @@ function formValue(form: FormData, name: string, fallback = ""): string {
 
 const NixorMessageGovernanceDialog: React.FC<IProps> = ({ mxEvent, initialMode, onFinished }) => {
     const body = useMemo(() => messageBody(mxEvent), [mxEvent]);
+    const senderName = mxEvent.sender?.name || "Unknown sender";
+    const channelName = MatrixClientPeg.get()?.getRoom(mxEvent.getRoomId() ?? "")?.name || "Direct message";
     const [mode, setMode] = useState<"action" | "report">(initialMode);
     const [identity, setIdentity] = useState<NixorIdentity | null>(null);
     const [identityError, setIdentityError] = useState<string | null>(null);
@@ -113,22 +116,16 @@ const NixorMessageGovernanceDialog: React.FC<IProps> = ({ mxEvent, initialMode, 
                 });
                 setCreated(`Action item ${result.public_id} was created and linked to this exact message.`);
             } else {
-                const result = await createReport({
+                const explanation = formValue(form, "description").trim();
+                await createReport({
                     category: formValue(form, "category", "message_concern"),
-                    description: formValue(form, "description"),
-                    urgency: formValue(form, "urgency") as "low" | "normal" | "high" | "critical",
-                    confidentiality: formValue(form, "confidentiality") as "standard" | "confidential_identity" | "restricted",
-                    preferred_contact: formValue(form, "preferred_contact", "in_app") as "in_app" | "matrix" | "none",
-                    immediate_safety: form.get("immediate_safety") === "on",
+                    description: explanation || "No additional explanation was provided.",
                     subjects: mxEvent.getSender()
                         ? [{ type: "user", public_id: mxEvent.getSender()!, display_label: mxEvent.sender?.name }]
                         : [],
                     targets: [{ type: "message", matrix_room_id: roomId, matrix_event_id: eventId }],
                 });
-                if (result.evidence.length !== 1) {
-                    throw new Error("The report was not confirmed because its governed evidence snapshot is unavailable.");
-                }
-                setCreated(`Report ${result.report_number} was submitted with a secured message snapshot. Save this number for follow-up.`);
+                setCreated("Thanks. Your report has been submitted for review.");
             }
         } catch (reason) {
             setError(reason instanceof Error ? reason.message : "The governed record was not created.");
@@ -189,14 +186,14 @@ const NixorMessageGovernanceDialog: React.FC<IProps> = ({ mxEvent, initialMode, 
                         </>
                     ) : (
                         <>
-                            <p>Only this selected event and bounded Matrix context may be captured as case-controlled evidence. Ordinary room history is not exposed to support staff.</p>
-                            <div className="mx_NixorWorkspace_disclosure"><strong>Immediate danger:</strong> contact local emergency services and a trusted Nixor staff member now. This report is not an emergency-response channel. Retaliation for a good-faith report is prohibited.</div>
-                            <label>Category<input name="category" defaultValue="message_concern" minLength={2} maxLength={160} required /></label>
-                            <label>What happened?<textarea name="description" defaultValue={`Concern about the selected message:\n\n${body}`} minLength={10} maxLength={50000} required /></label>
-                            <label>Urgency<select name="urgency" defaultValue="normal"><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="critical">Critical</option></select></label>
-                            <label>Confidentiality<select name="confidentiality" defaultValue="standard"><option value="standard">Standard</option><option value="confidential_identity">Keep my identity confidential where policy permits</option><option value="restricted">Restricted reviewer access</option></select></label>
-                            <label>Preferred contact<select name="preferred_contact" defaultValue="in_app"><option value="in_app">In-app</option><option value="matrix">Matrix message</option><option value="none">Do not contact me</option></select></label>
-                            <label className="mx_NixorWorkspace_checkbox"><input name="immediate_safety" type="checkbox" /> There is an immediate safety concern</label>
+                            <div className="mx_NixorWorkspace_card">
+                                <p><strong>Sender</strong><br />{senderName}</p>
+                                <p><strong>Message</strong><br />{body}</p>
+                                <p><strong>Channel</strong><br />{channelName}</p>
+                            </div>
+                            <p>Only the selected message and bounded context are secured for authorized review.</p>
+                            <label>Category<select name="category" defaultValue="harassment"><option value="harassment">Harassment or bullying</option><option value="inappropriate_content">Inappropriate content</option><option value="threat_or_safety">Threat or safety concern</option><option value="spam">Spam</option><option value="other">Other</option></select></label>
+                            <label>Explanation (optional)<textarea name="description" maxLength={50000} placeholder="Add any context that would help the reviewer." /></label>
                         </>
                     )}
                     {error && <p className="mx_NixorWorkspace_error" role="alert">{error}</p>}

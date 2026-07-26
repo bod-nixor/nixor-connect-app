@@ -38,11 +38,10 @@ import SdkConfig from "../../../SdkConfig";
 import {
     type AccountabilityAction,
     type AccountabilityActionView,
-    addReportInformation,
+    type AdminGovernanceReport,
     createActionItem,
     createCaseFromReport,
     createDecision,
-    createReport,
     dismissNotification,
     getAdminStatus,
     getNixorIdentity,
@@ -54,6 +53,7 @@ import {
     hasNixorCapability,
     listActionItems,
     listActionOptions,
+    listAdminReports,
     listCases,
     listDecisions,
     listFormalNotices,
@@ -64,7 +64,7 @@ import {
     type NixorIdentity,
     type NotificationPreferences,
     type ActionOptions,
-    submitCaseAppeal,
+    updateAdminReportStatus,
     updateNotificationPreferences,
 } from "../../../nixor/accountabilityApi";
 import {
@@ -109,6 +109,8 @@ function canViewAdmin(identity: NixorIdentity | null): boolean {
     return identity.capabilities.some((capability) =>
         capability === "support.identity" ||
         capability === "session.device.admin" ||
+        capability === "case.triage" ||
+        capability === "case.review" ||
         capability.startsWith("audit.") ||
         capability.startsWith("developer.") ||
         capability.startsWith("moderation.") ||
@@ -479,54 +481,17 @@ const ReportsView: React.FC = () => {
     useEffect(() => { void load(); }, [load]);
     const state = <ViewState loading={loading} error={error} onRetry={load} />;
     if (state && loading) return state;
-    return <>{error && state}<div className="mx_NixorWorkspace_disclosure"><strong>Safety and anti-retaliation:</strong> retaliation for a good-faith report is prohibited. If anyone is in immediate danger, contact local emergency services and a trusted Nixor staff member; this form is not an emergency-response channel.</div><CreateReportForm onCreated={load} />{!reports.length ? <div className="mx_NixorWorkspace_state">You have not submitted a report.</div> : <div className="mx_NixorWorkspace_cards">{reports.map((report) => <ReportCard key={report.public_id} report={report} onUpdated={load} />)}</div>}</>;
+    return <>{error && state}<div className="mx_NixorWorkspace_disclosure"><strong>Your reports are private.</strong> This list contains only reporter-safe status updates. Report a message from its menu or report a person from their profile.</div>{!reports.length ? <div className="mx_NixorWorkspace_state">You have not submitted a report.</div> : <div className="mx_NixorWorkspace_cards">{reports.map((report, index) => <article className="mx_NixorWorkspace_card" key={`${report.submitted_at}-${index}`}><div className="mx_NixorWorkspace_cardHeader"><h2>{report.type}</h2><StatusPill value={report.status} /></div><p><strong>{report.category}</strong></p><p>{formatDate(report.submitted_at)}</p><p>{report.summary}</p></article>)}</div>}</>;
 };
 
-const CreateReportForm: React.FC<{ onCreated: () => Promise<void> }> = ({ onCreated }) => {
-    const [busy, setBusy] = useState(false); const [error, setError] = useState<string | null>(null); const [created, setCreated] = useState<string | null>(null);
-    const [targetType, setTargetType] = useState<"general" | "user" | "dm" | "group_dm" | "channel" | "space" | "bot" | "moderator_action">("general");
-    const submit = async (event: FormEvent<HTMLFormElement>): Promise<void> => { event.preventDefault(); setBusy(true); setError(null); setCreated(null); const formElement = event.currentTarget; const form = new FormData(formElement); try { const result = await createReport({ category: formValue(form, "category", "general"), description: formValue(form, "description"), urgency: formValue(form, "urgency") as "low" | "normal" | "high" | "critical", confidentiality: formValue(form, "confidentiality") as "standard" | "confidential_identity" | "restricted", preferred_contact: formValue(form, "preferred_contact") as "in_app" | "matrix" | "none", immediate_safety: form.get("immediate_safety") === "on", targets: targetType === "general" ? [{ type: "general" }] : [{ type: targetType, public_id: formValue(form, "target_id") }] }); setCreated(`${result.report_number} — ${result.status}${result.emergency_guidance ? ` — ${result.emergency_guidance}` : ""}`); formElement.reset(); await onCreated(); } catch (reason) { setError(reason instanceof Error ? reason.message : "Report was not submitted."); } finally { setBusy(false); } };
-    return <details className="mx_NixorWorkspace_createPanel"><summary>Submit a report</summary><form onSubmit={(event) => void submit(event)}><label>Category<input name="category" minLength={2} maxLength={160} defaultValue="general" required /></label><label>What happened?<textarea name="description" minLength={10} maxLength={50000} required /></label><label>Report target<select name="target_type" value={targetType} onChange={(event) => setTargetType(event.target.value as typeof targetType)}><option value="general">General conduct or safety incident</option><option value="user">User</option><option value="dm">Direct message</option><option value="group_dm">Group DM</option><option value="channel">Channel</option><option value="space">Server / space</option><option value="bot">Bot</option><option value="moderator_action">Moderator action</option></select></label>{targetType !== "general" && <label>Target Matrix ID or governed public ID<input name="target_id" maxLength={255} required /></label>}<label>Urgency<select name="urgency" defaultValue="normal"><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="critical">Critical</option></select></label><label>Confidentiality<select name="confidentiality" defaultValue="standard"><option value="standard">Standard</option><option value="confidential_identity">Confidential identity</option><option value="restricted">Restricted</option></select></label><label>Preferred contact<select name="preferred_contact" defaultValue="in_app"><option value="in_app">In-app</option><option value="matrix">Matrix message</option><option value="none">No follow-up contact</option></select></label><label className="mx_NixorWorkspace_checkbox"><input name="immediate_safety" type="checkbox" /> There is an immediate safety concern</label>{error && <p className="mx_NixorWorkspace_error" role="alert">{error}</p>}{created && <p className="mx_NixorWorkspace_success" role="status">Report submitted: {created}</p>}<button type="submit" disabled={busy}>{busy ? "Submitting…" : "Submit report"}</button></form></details>;
-};
-
-const ReportCard: React.FC<{ report: GovernanceReport; onUpdated: () => Promise<void> }> = ({ report, onUpdated }) => {
-    const [text, setText] = useState("");
-    const [busy, setBusy] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [message, setMessage] = useState<string | null>(null);
-    const addInformation = async (event: FormEvent): Promise<void> => {
-        event.preventDefault(); setBusy(true); setError(null); setMessage(null);
-        try { await addReportInformation(report.public_id, text); setText(""); await onUpdated(); }
-        catch (reason) { setError(reason instanceof Error ? reason.message : "Information was not added."); }
-        finally { setBusy(false); }
-    };
-    const appeal = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
-        event.preventDefault();
-        if (!report.case_public_id) return;
-        const basis = formValue(new FormData(event.currentTarget), "basis");
-        setBusy(true); setError(null); setMessage(null);
-        try {
-            const appealId = await submitCaseAppeal(report.case_public_id, basis);
-            setMessage(`Appeal ${appealId} submitted for independent human review.`);
-            await onUpdated();
-        } catch (reason) {
-            setError(reason instanceof Error ? reason.message : "Appeal was not submitted.");
-        } finally {
-            setBusy(false);
-        }
-    };
-    return (
-        <article className="mx_NixorWorkspace_card">
-            <div className="mx_NixorWorkspace_cardHeader"><h2>{report.report_number}</h2><StatusPill value={report.reporter_safe_status} /></div>
-            <p>{report.category} · {report.urgency} urgency</p>
-            {report.reporter_safe_summary && <p>{report.reporter_safe_summary}</p>}
-            <p>Submitted {formatDate(report.submitted_at)}</p>
-            <details><summary>Add information</summary><form onSubmit={(event) => void addInformation(event)}><label>Additional information<textarea value={text} onChange={(event) => setText(event.target.value)} minLength={2} maxLength={50000} required /></label><button type="submit" disabled={busy}>{busy ? "Adding…" : "Add information"}</button></form></details>
-            {report.appeal_allowed && report.case_public_id && <details><summary>Appeal resolved outcome</summary><form onSubmit={(event) => void appeal(event)}><p>An appeal is reviewed by a different human reviewer. It does not automatically reverse an outcome.</p><label>Appeal basis<textarea name="basis" minLength={10} maxLength={20000} required /></label><button type="submit" disabled={busy}>Submit appeal</button></form></details>}
-            {error && <p className="mx_NixorWorkspace_error" role="alert">{error}</p>}
-            {message && <p className="mx_NixorWorkspace_success" role="status">{message}</p>}
-        </article>
-    );
+const AdminReportsPanel: React.FC = () => {
+    const [reports, setReports] = useState<AdminGovernanceReport[]>([]);
+    const [loading, setLoading] = useState(true); const [error, setError] = useState<string | null>(null); const [busy, setBusy] = useState<string | null>(null);
+    const load = useCallback(async () => { setLoading(true); setError(null); try { setReports(await listAdminReports()); } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not load admin reports."); } finally { setLoading(false); } }, []);
+    useEffect(() => { void load(); }, [load]);
+    const transition = async (reportId: string, action: "reviewing" | "resolved" | "dismissed"): Promise<void> => { setBusy(reportId); setError(null); try { await updateAdminReportStatus(reportId, action); await load(); } catch (reason) { setError(reason instanceof Error ? reason.message : "The report status was not updated."); } finally { setBusy(null); } };
+    if (loading) return <ViewState loading error={error} onRetry={load} /> as JSX.Element;
+    return <section><h2>Admin Reports</h2><p>Authorized review queue with bounded message evidence.</p>{error && <ViewState loading={false} error={error} onRetry={load} />}{!reports.length ? <div className="mx_NixorWorkspace_state">There are no reports in the queue.</div> : <div className="mx_NixorWorkspace_cards">{reports.map((report) => <article className="mx_NixorWorkspace_card" key={report.public_id}><div className="mx_NixorWorkspace_cardHeader"><h3>{report.type === "message" ? "Message Report" : report.type === "user" ? "User Report" : "Report"}</h3><StatusPill value={report.status} /></div><p><strong>Reporter:</strong> {report.reporter_name}</p><p><strong>Reported user:</strong> {report.reported_user}</p><p><strong>Category:</strong> {report.category}</p><p><strong>Explanation:</strong> {report.explanation}</p><p><strong>Room / channel:</strong> {report.room || "Not applicable"}</p><p><strong>Submitted:</strong> {formatDate(report.submitted_at)}</p>{report.evidence_preview && <div className="mx_NixorWorkspace_disclosure"><strong>Authorized bounded message evidence</strong><p>{report.evidence_preview.message}</p><small>{report.evidence_preview.context_before} messages before · {report.evidence_preview.context_after} messages after</small></div>}<div className="mx_NixorWorkspace_actions">{report.status === "Submitted" && <AccessibleButton disabled={busy === report.public_id} onClick={() => void transition(report.public_id, "reviewing")}>Mark reviewing</AccessibleButton>}{!["Resolved", "Dismissed"].includes(report.status) && <><AccessibleButton disabled={busy === report.public_id} onClick={() => void transition(report.public_id, "resolved")}>Resolve</AccessibleButton><AccessibleButton disabled={busy === report.public_id} onClick={() => void transition(report.public_id, "dismissed")}>Dismiss</AccessibleButton></>}</div></article>)}</div>}</section>;
 };
 
 const CreateCaseForm: React.FC<{ onCreated: () => Promise<void> }> = ({ onCreated }) => {
@@ -760,7 +725,7 @@ const AdminView: React.FC<{ identity: NixorIdentity }> = ({ identity }) => {
     const load = useCallback(async () => { if (!canLoadStatus) return; setLoading(true); setError(null); try { setStatus(await getAdminStatus()); } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not load administration status."); } finally { setLoading(false); } }, [canLoadStatus]); useEffect(() => { void load(); }, [load]);
     const state = <ViewState loading={loading} error={error} onRetry={load} />;
     const database = status?.database as { database_size?: unknown } | undefined; const sessions = status?.sessions as { active?: unknown } | undefined; const workers = Array.isArray(status?.worker_leases) ? status.worker_leases as Array<{ worker_key?: unknown; last_success_at?: unknown; last_failure_at?: unknown }> : []; const dashboardUrl = (SdkConfig.get()?.nixor as { developer_dashboard_url?: string } | undefined)?.developer_dashboard_url;
-    return <>{canLoadStatus && state}{status && <><div className="mx_NixorHomeOverview_grid"><div><strong>{displayValue(sessions?.active)}</strong><span>active Connect sessions</span></div><div><strong>{displayValue(database?.database_size)}</strong><span>governance database</span></div><div><strong>{workers.length}</strong><span>registered workers</span></div></div><section><h2>Runtime workers</h2><div className="mx_NixorWorkspace_cards">{workers.map((worker, index) => <article className="mx_NixorWorkspace_card" key={displayValue(worker.worker_key, String(index))}><h3>{displayValue(worker.worker_key, "Worker")}</h3><p>Last success: {formatDate(typeof worker.last_success_at === "string" ? worker.last_success_at : null)}</p>{Boolean(worker.last_failure_at) && <p className="mx_NixorWorkspace_error">Last failure: {formatDate(typeof worker.last_failure_at === "string" ? worker.last_failure_at : null)}</p>}</article>)}</div></section></>}{dashboardUrl && <p><a href={dashboardUrl} target="_blank" rel="noreferrer noopener">Open the Developer Dashboard</a></p>}{(hasNixorCapability(identity, "role.view") || hasNixorCapability(identity, "role.assign") || hasNixorCapability(identity, "session.device.admin")) && <NixorIdentityAdminPanel identity={identity} />}{(hasNixorCapability(identity, "moderation.perform") || hasNixorCapability(identity, "moderation.reverse")) && <NixorModerationPanel identity={identity} />}<NixorAuditRetentionPanel identity={identity} /></>;
+    return <>{hasNixorCapability(identity, "case.triage") && <AdminReportsPanel />}{canLoadStatus && state}{status && <><div className="mx_NixorHomeOverview_grid"><div><strong>{displayValue(sessions?.active)}</strong><span>active Connect sessions</span></div><div><strong>{displayValue(database?.database_size)}</strong><span>governance database</span></div><div><strong>{workers.length}</strong><span>registered workers</span></div></div><section><h2>Runtime workers</h2><div className="mx_NixorWorkspace_cards">{workers.map((worker, index) => <article className="mx_NixorWorkspace_card" key={displayValue(worker.worker_key, String(index))}><h3>{displayValue(worker.worker_key, "Worker")}</h3><p>Last success: {formatDate(typeof worker.last_success_at === "string" ? worker.last_success_at : null)}</p>{Boolean(worker.last_failure_at) && <p className="mx_NixorWorkspace_error">Last failure: {formatDate(typeof worker.last_failure_at === "string" ? worker.last_failure_at : null)}</p>}</article>)}</div></section></>}{dashboardUrl && <p><a href={dashboardUrl} target="_blank" rel="noreferrer noopener">Open the Developer Dashboard</a></p>}{(hasNixorCapability(identity, "role.view") || hasNixorCapability(identity, "role.assign") || hasNixorCapability(identity, "session.device.admin")) && <NixorIdentityAdminPanel identity={identity} />}{(hasNixorCapability(identity, "moderation.perform") || hasNixorCapability(identity, "moderation.reverse")) && <NixorModerationPanel identity={identity} />}<NixorAuditRetentionPanel identity={identity} /></>;
 };
 
 const VIEW_TITLES: Record<NixorPrimaryView, { title: string; description: string }> = {

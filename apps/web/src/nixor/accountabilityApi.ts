@@ -128,19 +128,30 @@ export interface GovernanceDecision {
 }
 
 export interface GovernanceReport {
-    public_id: string;
-    report_number: string;
+    type: "Message Report" | "User Report";
     category: string;
-    urgency: string;
-    confidentiality: string;
-    preferred_contact: string;
-    immediate_safety: boolean;
-    reporter_safe_status: string;
-    reporter_safe_summary?: string | null;
-    case_public_id?: string | null;
-    appeal_allowed?: boolean;
+    status: "Submitted" | "Reviewing" | "Resolved" | "Dismissed";
+    summary: string;
     submitted_at: string;
-    updated_at: string;
+}
+
+export interface AdminGovernanceReport {
+    public_id: string;
+    type: "message" | "user" | "other";
+    reporter_name: string;
+    reported_user: string;
+    category: string;
+    explanation: string;
+    room?: string | null;
+    submitted_at: string;
+    status: "Submitted" | "Reviewing" | "Resolved" | "Dismissed";
+    evidence_preview?: {
+        message: string;
+        sender?: string | null;
+        context_before: number;
+        context_after: number;
+        captured_at?: string | null;
+    } | null;
 }
 
 export interface GovernanceCase {
@@ -1166,6 +1177,23 @@ export async function listReports(): Promise<GovernanceReport[]> {
     return response.data.reports;
 }
 
+export async function listAdminReports(): Promise<AdminGovernanceReport[]> {
+    const response = await requestNixorConnect<ApiEnvelope<{ reports: AdminGovernanceReport[] }>>(
+        "/api/v1/admin/reports",
+    );
+    return response.data.reports;
+}
+
+export async function updateAdminReportStatus(
+    reportId: string,
+    action: "reviewing" | "resolved" | "dismissed",
+): Promise<void> {
+    await requestNixorConnect(`/api/v1/admin/reports/${encodeURIComponent(reportId)}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ action }),
+    });
+}
+
 export interface CreateReportInput {
     category: string;
     description: string;
@@ -1184,28 +1212,12 @@ export interface CreateReportInput {
 }
 
 export async function createReport(input: CreateReportInput): Promise<{
-    public_id: string;
-    report_number: string;
     status: string;
-    evidence: Array<{
-        public_id: string;
-        canonical_hash: string;
-        context_before: number;
-        context_after: number;
-    }>;
-    emergency_guidance?: string;
+    message: string;
 }> {
     const response = await requestNixorConnect<ApiEnvelope<{
-        public_id: string;
-        report_number: string;
         status: string;
-        evidence: Array<{
-            public_id: string;
-            canonical_hash: string;
-            context_before: number;
-            context_after: number;
-        }>;
-        emergency_guidance?: string;
+        message: string;
     }>>("/api/v1/reports", {
         method: "POST",
         headers: { "Idempotency-Key": crypto.randomUUID() },
