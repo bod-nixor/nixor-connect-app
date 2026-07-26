@@ -160,10 +160,10 @@ const NixorActionCard: React.FC<Props> = ({ action, identity, onUpdated }) => {
             </div>
             <p>{action.description}</p>
             <p>Due: {formatDate(action.due_at)} · Priority: {action.priority} · Category: {action.category}</p>
-            <p>Created by {action.creator_matrix_user_id}{action.acceptance_reviewer_matrix_user_id ? ` · Reviewer ${action.acceptance_reviewer_matrix_user_id}` : ""}</p>
+            <p>Created by {action.creator_display_name || "Governed user"}{action.acceptance_reviewer_matrix_user_id ? ` · Reviewer ${action.acceptance_reviewer_display_name || "Governed user"}` : ""}</p>
             <div className="mx_NixorRoleLabels">{action.assignees.map((assignee) => (
                 <span className="mx_NixorStatusPill" key={`${action.public_id}:${assignee.matrix_user_id}`}>
-                    {assignee.role}: {assignee.matrix_user_id}{assignee.acknowledged_at ? " ✓" : " — awaiting acknowledgement"}
+                    {assignee.role}: {assignee.display_name || "Governed user"}{assignee.acknowledged_at ? " ✓" : " — awaiting acknowledgement"}
                 </span>
             ))}</div>
             {myAssignment && !myAssignment.acknowledged_at && ["assigned", "overdue"].includes(action.status) && (

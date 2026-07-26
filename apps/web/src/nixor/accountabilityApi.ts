@@ -59,7 +59,9 @@ export interface AccountabilityAction {
     title: string;
     description: string;
     creator_matrix_user_id: string;
+    creator_display_name?: string | null;
     acceptance_reviewer_matrix_user_id?: string | null;
+    acceptance_reviewer_display_name?: string | null;
     resource_key?: string | null;
     responsible_entity_key?: string | null;
     project_key?: string | null;
@@ -80,6 +82,7 @@ export interface AccountabilityAction {
         | "cancelled";
     assignees: Array<{
         matrix_user_id: string;
+        display_name?: string | null;
         role: string;
         acknowledged_at?: string | null;
         assignment_version?: number;

@@ -353,7 +353,7 @@ const AccountabilityView: React.FC<{ identity: NixorIdentity }> = ({ identity })
 const CreateActionForm: React.FC<{ identity: NixorIdentity; onCreated: () => Promise<void> }> = ({ identity, onCreated }) => {
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [created, setCreated] = useState<string | null>(null);
+    const [created, setCreated] = useState(false);
     const [options, setOptions] = useState<ActionOptions>({ people: [], resources: [], dependencies: [] });
     const [peopleQuery, setPeopleQuery] = useState("");
     const [resourceKey, setResourceKey] = useState("");
@@ -383,7 +383,7 @@ const CreateActionForm: React.FC<{ identity: NixorIdentity; onCreated: () => Pro
                 watcher_refs: formValue(form, "watcher") ? [formValue(form, "watcher")] : [],
                 assignment_reason: "Created through the Nixor Connect accountability workspace",
             });
-            setCreated(result.public_id); formElement.reset(); await onCreated();
+            setCreated(true); formElement.reset(); await onCreated();
         } catch (reason) { setError(reason instanceof Error ? reason.message : "Action item was not created."); }
         finally { setBusy(false); }
     };
@@ -406,7 +406,7 @@ const CreateActionForm: React.FC<{ identity: NixorIdentity; onCreated: () => Pro
                 <label>Dependency (optional)<select name="dependency"><option value="">No dependency</option>{options.dependencies.map((dependency) => <option key={dependency.public_id} value={dependency.public_id}>{dependency.title} — {dependency.status}</option>)}</select></label>
                 <label>Watcher (optional)<select name="watcher"><option value="">No watcher</option>{options.people.map((person) => <option key={person.identity_ref} value={person.identity_ref}>{person.display_name}</option>)}</select></label>
                 {error && <p className="mx_NixorWorkspace_error" role="alert">{error}</p>}
-                {created && <p className="mx_NixorWorkspace_success" role="status">Created {created}</p>}
+                {created && <p className="mx_NixorWorkspace_success" role="status">Action item created and assigned.</p>}
                 <button type="submit" disabled={busy}>{busy ? "Creating…" : "Create action item"}</button>
             </form>
         </details>
