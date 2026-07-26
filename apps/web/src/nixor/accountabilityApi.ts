@@ -277,6 +277,10 @@ export interface GovernedResourceTemplate {
     default_settings: Record<string, unknown>;
 }
 
+export interface ResourceMemberCandidate { identity_ref: string; display_name: string; entity_name?: string | null; department_name?: string | null; }
+export interface ResourceMemberRole { role_key: string; description: string; authority_level: number; }
+export interface ResourceMember { assignment_id: string; identity_ref: string; display_name: string; role_key: string; role_description: string; entity_name?: string | null; created_at: string; }
+
 export interface ProtectedResourceName {
     normalized_name: string;
     display_name: string;
@@ -886,13 +890,22 @@ export async function listActionItems(view: AccountabilityActionView = "mine"): 
     );
     return response.data.action_items;
 }
+export interface ActionOptionPerson { identity_ref: string; display_name: string; entity_name?: string | null; }
+export interface ActionOptionResource { resource_key: string; display_name: string; escalation_policy_key?: string | null; }
+export interface ActionOptions { people: ActionOptionPerson[]; resources: ActionOptionResource[]; dependencies: Array<{ public_id: string; title: string; status: string }>; }
+export async function listActionOptions(query = ""): Promise<ActionOptions> {
+    const suffix = query.trim() ? `?q=${encodeURIComponent(query.trim())}` : "";
+    const response = await requestNixorConnect<ApiEnvelope<ActionOptions>>(`/api/v1/action-options${suffix}`);
+    return response.data;
+}
 
 export interface CreateActionInput {
     title: string;
     description: string;
     source_matrix_room_id?: string;
     source_matrix_event_id?: string;
-    assignees: Array<{ matrix_user_id: string; role: "owner" | "assignee" }>;
+    assignees?: Array<{ matrix_user_id: string; role: "owner" | "assignee" }>;
+    assignee_refs?: Array<{ identity_ref: string; role: "owner" | "assignee" }>;
     acceptance_reviewer_matrix_user_id?: string;
     resource_key?: string;
     responsible_entity_key?: string;
@@ -904,6 +917,8 @@ export interface CreateActionInput {
     evidence_requirements?: unknown[];
     dependencies?: string[];
     watchers?: string[];
+    watcher_refs?: string[];
+    acceptance_reviewer_ref?: string;
     escalation_policy_key?: string;
     assignment_reason: string;
 }
@@ -1539,6 +1554,22 @@ export async function revokePushSubscription(subscriptionId: string): Promise<vo
 export async function listGovernedResources(): Promise<GovernedResource[]> {
     const response = await requestNixorConnect<ApiEnvelope<{ resources: GovernedResource[] }>>("/api/v1/resources");
     return response.data.resources;
+}
+
+export async function listResourceMembers(resourceKey: string): Promise<ResourceMember[]> {
+    const response = await requestNixorConnect<ApiEnvelope<{ members: ResourceMember[] }>>(`/api/v1/resources/${encodeURIComponent(resourceKey)}/members`);
+    return response.data.members;
+}
+export async function searchResourceMemberCandidates(resourceKey: string, q: string): Promise<ResourceMemberCandidate[]> {
+    const response = await requestNixorConnect<ApiEnvelope<{ candidates: ResourceMemberCandidate[] }>>(`/api/v1/resources/${encodeURIComponent(resourceKey)}/member-candidates?q=${encodeURIComponent(q)}`);
+    return response.data.candidates;
+}
+export async function listResourceMemberRoles(resourceKey: string): Promise<ResourceMemberRole[]> {
+    const response = await requestNixorConnect<ApiEnvelope<{ roles: ResourceMemberRole[] }>>(`/api/v1/resources/${encodeURIComponent(resourceKey)}/member-roles`);
+    return response.data.roles;
+}
+export async function addResourceMember(resourceKey: string, input: { identity_ref: string; role_key: string; reason: string }): Promise<void> {
+    await requestNixorConnect(`/api/v1/resources/${encodeURIComponent(resourceKey)}/members`, { method: "POST", body: JSON.stringify({ ...input, idempotency_key: crypto.randomUUID() }) });
 }
 
 export async function listGovernedResourceTemplates(): Promise<GovernedResourceTemplate[]> {

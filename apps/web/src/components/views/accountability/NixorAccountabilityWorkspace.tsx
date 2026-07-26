@@ -53,6 +53,7 @@ import {
     type GovernanceReport,
     hasNixorCapability,
     listActionItems,
+    listActionOptions,
     listCases,
     listDecisions,
     listFormalNotices,
@@ -62,6 +63,7 @@ import {
     markNotificationRead,
     type NixorIdentity,
     type NotificationPreferences,
+    type ActionOptions,
     submitCaseAppeal,
     updateNotificationPreferences,
 } from "../../../nixor/accountabilityApi";
@@ -352,6 +354,10 @@ const CreateActionForm: React.FC<{ identity: NixorIdentity; onCreated: () => Pro
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [created, setCreated] = useState<string | null>(null);
+    const [options, setOptions] = useState<ActionOptions>({ people: [], resources: [], dependencies: [] });
+    const [peopleQuery, setPeopleQuery] = useState("");
+    useEffect(() => { void listActionOptions().then(setOptions).catch(() => undefined); }, []);
+    useEffect(() => { if (peopleQuery.trim().length < 2) return; const timer = window.setTimeout(() => void listActionOptions(peopleQuery).then(setOptions).catch(() => undefined), 300); return () => window.clearTimeout(timer); }, [peopleQuery]);
     const submit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
         event.preventDefault(); setBusy(true); setError(null); setCreated(null);
         const formElement = event.currentTarget;
@@ -359,21 +365,16 @@ const CreateActionForm: React.FC<{ identity: NixorIdentity; onCreated: () => Pro
         try {
             const result = await createActionItem({
                 title: formValue(form, "title"), description: formValue(form, "description"),
-                assignees: [{ matrix_user_id: formValue(form, "assignee"), role: "assignee" }],
-                acceptance_reviewer_matrix_user_id: formValue(form, "reviewer") || undefined,
+                assignee_refs: [{ identity_ref: formValue(form, "assignee"), role: "assignee" }],
+                acceptance_reviewer_ref: formValue(form, "reviewer") || undefined,
                 resource_key: formValue(form, "resource_key") || undefined,
-                responsible_entity_key: formValue(form, "entity_key") || undefined,
-                project_key: formValue(form, "project_key") || undefined,
                 priority: formValue(form, "priority") as "low" | "normal" | "high" | "critical",
                 category: formValue(form, "category", "general"),
                 due_at: toIsoDateTime(formValue(form, "due_at")),
                 due_timezone: formValue(form, "timezone", "Asia/Karachi"),
-                source_matrix_room_id: formValue(form, "source_room") || undefined,
-                source_matrix_event_id: formValue(form, "source_event") || undefined,
                 evidence_requirements: formValue(form, "evidence_requirements").split(/\r?\n/).map((value) => value.trim()).filter(Boolean),
-                dependencies: listFormValue(form, "dependencies"),
-                watchers: listFormValue(form, "watchers"),
-                escalation_policy_key: formValue(form, "escalation_policy") || undefined,
+                dependencies: formValue(form, "dependency") ? [formValue(form, "dependency")] : [],
+                watcher_refs: formValue(form, "watcher") ? [formValue(form, "watcher")] : [],
                 assignment_reason: "Created through the Nixor Connect accountability workspace",
             });
             setCreated(result.public_id); formElement.reset(); await onCreated();
@@ -386,21 +387,17 @@ const CreateActionForm: React.FC<{ identity: NixorIdentity; onCreated: () => Pro
             <form onSubmit={(event) => void submit(event)}>
                 <label>Title<input name="title" minLength={3} maxLength={240} required /></label>
                 <label>Description<textarea name="description" minLength={1} maxLength={20000} required /></label>
-                <label>Assignee Matrix ID<input name="assignee" defaultValue={identity.identity.matrix_user_id} pattern="^@[^:\s]+:[^\s]+$" required /></label>
-                <label>Acceptance reviewer Matrix ID (optional)<input name="reviewer" pattern="^@[^:\s]+:[^\s]+$" /></label>
+                <label>Find people<input value={peopleQuery} onChange={(event) => setPeopleQuery(event.target.value)} minLength={2} placeholder="Name or institutional context" /></label>
+                <label>Assignee<select name="assignee" required><option value="">Choose a person</option>{options.people.map((person) => <option key={person.identity_ref} value={person.identity_ref}>{person.display_name}{person.entity_name ? ` — ${person.entity_name}` : ""}</option>)}</select></label>
+                <label>Acceptance reviewer (optional)<select name="reviewer"><option value="">No separate reviewer</option>{options.people.map((person) => <option key={person.identity_ref} value={person.identity_ref}>{person.display_name}</option>)}</select></label>
                 <label>Category<input name="category" defaultValue="general" minLength={2} maxLength={120} required /></label>
-                <label>Governed resource key (optional)<input name="resource_key" maxLength={200} /></label>
-                <label>Responsible entity key (optional)<input name="entity_key" maxLength={200} /></label>
-                <label>Project key (optional)<input name="project_key" maxLength={200} /></label>
-                <label>Source Matrix room ID (optional)<input name="source_room" maxLength={255} /></label>
-                <label>Source Matrix event ID (optional; requires room)<input name="source_event" maxLength={255} /></label>
+                <label>Governed context<select name="resource_key"><option value="">No governed context</option>{options.resources.map((resource) => <option key={resource.resource_key} value={resource.resource_key}>{resource.display_name}</option>)}</select></label>
                 <label>Priority<select name="priority" defaultValue="normal"><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="critical">Critical</option></select></label>
                 <label>Due date and time (optional)<input name="due_at" type="datetime-local" /></label>
                 <label>Due-date time zone<input name="timezone" defaultValue="Asia/Karachi" minLength={3} maxLength={100} required /></label>
                 <label>Completion evidence requirements (one per line)<textarea name="evidence_requirements" maxLength={8000} /></label>
-                <label>Dependency action public IDs<textarea name="dependencies" maxLength={12500} /></label>
-                <label>Watcher Matrix IDs<textarea name="watchers" maxLength={12500} /></label>
-                <label>Escalation policy key (optional)<input name="escalation_policy" pattern="^[a-z][a-z0-9_]{1,63}$" /></label>
+                <label>Dependency (optional)<select name="dependency"><option value="">No dependency</option>{options.dependencies.map((dependency) => <option key={dependency.public_id} value={dependency.public_id}>{dependency.title} — {dependency.status}</option>)}</select></label>
+                <label>Watcher (optional)<select name="watcher"><option value="">No watcher</option>{options.people.map((person) => <option key={person.identity_ref} value={person.identity_ref}>{person.display_name}</option>)}</select></label>
                 {error && <p className="mx_NixorWorkspace_error" role="alert">{error}</p>}
                 {created && <p className="mx_NixorWorkspace_success" role="status">Created {created}</p>}
                 <button type="submit" disabled={busy}>{busy ? "Creating…" : "Create action item"}</button>

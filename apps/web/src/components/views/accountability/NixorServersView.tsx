@@ -11,10 +11,13 @@ import AccessibleButton from "../elements/AccessibleButton";
 import Spinner from "../elements/Spinner";
 import {
     createGovernedResource,
+    addResourceMember,
     type GovernedResource,
     type GovernedResourceTemplate,
     hasNixorCapability,
     listGovernedResources,
+    listResourceMemberRoles,
+    listResourceMembers,
     listGovernedResourceTemplates,
     listProtectedResourceNames,
     type NixorIdentity,
@@ -25,6 +28,10 @@ import {
     transferGovernedResource,
     transitionGovernedResource,
     updateGovernedResource,
+    searchResourceMemberCandidates,
+    type ResourceMemberCandidate,
+    type ResourceMemberRole,
+    type ResourceMember,
 } from "../../../nixor/accountabilityApi";
 import { openNixorMatrixRoom } from "../../../nixor/accountabilityNavigation";
 
@@ -358,6 +365,44 @@ const ResourceManagement: React.FC<{
     );
 };
 
+const ResourceMembers: React.FC<{ resource: GovernedResource; identity: NixorIdentity }> = ({ resource, identity }) => {
+    const [members, setMembers] = useState<ResourceMember[]>([]);
+    const [roles, setRoles] = useState<ResourceMemberRole[]>([]);
+    const [candidates, setCandidates] = useState<ResourceMemberCandidate[]>([]);
+    const [query, setQuery] = useState(""); const [selected, setSelected] = useState("");
+    const [busy, setBusy] = useState(false); const [error, setError] = useState<string | null>(null); const [message, setMessage] = useState<string | null>(null);
+    const canManage = hasNixorCapability(identity, "resource.members.manage");
+    const load = useCallback(async () => {
+        if (!canManage) return;
+        const [memberRows, roleRows] = await Promise.all([listResourceMembers(resource.resource_key), listResourceMemberRoles(resource.resource_key)]);
+        setMembers(memberRows); setRoles(roleRows);
+    }, [canManage, resource.resource_key]);
+    useEffect(() => { void load().catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Could not load members.")); }, [load]);
+    useEffect(() => {
+        if (query.trim().length < 2) { setCandidates([]); return; }
+        const timer = window.setTimeout(() => void searchResourceMemberCandidates(resource.resource_key, query).then(setCandidates).catch(() => setCandidates([])), 300);
+        return () => window.clearTimeout(timer);
+    }, [query, resource.resource_key]);
+    if (!canManage) return null;
+    const submit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+        event.preventDefault(); if (!selected || !roles[0]) return;
+        const form = new FormData(event.currentTarget); setBusy(true); setError(null); setMessage(null);
+        try { await addResourceMember(resource.resource_key, { identity_ref: selected, role_key: formValue(form, "role"), reason: "Added through Nixor Connect" }); setMessage("Member added and synchronized with Matrix."); setSelected(""); setQuery(""); setCandidates([]); await load(); }
+        catch (reason) { setError(reason instanceof Error ? reason.message : "Member could not be added."); } finally { setBusy(false); }
+    };
+    return <details className="mx_NixorWorkspace_createPanel"><summary>People and membership</summary>
+        <p>{members.length ? `${members.length} governed member${members.length === 1 ? "" : "s"}.` : "No locally managed members yet."}</p>
+        {members.map((member) => <p key={member.assignment_id}>{member.display_name} · {member.role_description}{member.entity_name ? ` · ${member.entity_name}` : ""}</p>)}
+        <form onSubmit={(event) => void submit(event)}>
+            <label>Find a person by name or institutional context<input value={query} onChange={(event) => setQuery(event.target.value)} minLength={2} maxLength={100} /></label>
+            {candidates.length > 0 && <label>Choose person<select value={selected} onChange={(event) => setSelected(event.target.value)} required><option value="">Choose a person</option>{candidates.map((candidate) => <option key={candidate.identity_ref} value={candidate.identity_ref}>{candidate.display_name}{candidate.entity_name ? ` — ${candidate.entity_name}` : ""}</option>)}</select></label>}
+            <label>Membership role<select name="role" required>{roles.map((role) => <option key={role.role_key} value={role.role_key}>{role.description}</option>)}</select></label>
+            <button type="submit" disabled={busy || !selected || !roles.length}>{busy ? "Adding…" : "Add person"}</button>
+        </form>
+        {error && <p className="mx_NixorWorkspace_error" role="alert">{error}</p>}{message && <p className="mx_NixorWorkspace_success" role="status">{message}</p>}
+    </details>;
+};
+
 const NixorServersView: React.FC<{ identity: NixorIdentity }> = ({ identity }) => {
     const [resources, setResources] = useState<GovernedResource[]>([]);
     const [templates, setTemplates] = useState<GovernedResourceTemplate[]>([]);
@@ -408,6 +453,7 @@ const NixorServersView: React.FC<{ identity: NixorIdentity }> = ({ identity }) =
                             <p>Creation source: {resource.creation_source} · visibility {resource.matrix_visibility}</p>
                             {resource.protected_branding && <p className="mx_NixorWorkspace_disclosure">Protected institutional name and branding</p>}
                             <AccessibleButton onClick={() => openNixorMatrixRoom(resource.matrix_room_id)}>Open in Matrix</AccessibleButton>
+                            <ResourceMembers resource={resource} identity={identity} />
                             <ResourceManagement identity={identity} resource={resource} templates={templates} onUpdated={load} />
                         </article>
                     ))}
