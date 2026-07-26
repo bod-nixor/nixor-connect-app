@@ -893,8 +893,11 @@ export async function listActionItems(view: AccountabilityActionView = "mine"): 
 export interface ActionOptionPerson { identity_ref: string; display_name: string; entity_name?: string | null; }
 export interface ActionOptionResource { resource_key: string; display_name: string; escalation_policy_key?: string | null; }
 export interface ActionOptions { people: ActionOptionPerson[]; resources: ActionOptionResource[]; dependencies: Array<{ public_id: string; title: string; status: string }>; }
-export async function listActionOptions(query = ""): Promise<ActionOptions> {
-    const suffix = query.trim() ? `?q=${encodeURIComponent(query.trim())}` : "";
+export async function listActionOptions(query = "", resourceKey?: string): Promise<ActionOptions> {
+    const params = new URLSearchParams();
+    if (query.trim()) params.set("q", query.trim());
+    if (resourceKey) params.set("resource_key", resourceKey);
+    const suffix = params.size ? `?${params.toString()}` : "";
     const response = await requestNixorConnect<ApiEnvelope<ActionOptions>>(`/api/v1/action-options${suffix}`);
     return response.data;
 }

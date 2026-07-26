@@ -356,8 +356,14 @@ const CreateActionForm: React.FC<{ identity: NixorIdentity; onCreated: () => Pro
     const [created, setCreated] = useState<string | null>(null);
     const [options, setOptions] = useState<ActionOptions>({ people: [], resources: [], dependencies: [] });
     const [peopleQuery, setPeopleQuery] = useState("");
+    const [resourceKey, setResourceKey] = useState("");
+    const [optionsLoading, setOptionsLoading] = useState(false);
     useEffect(() => { void listActionOptions().then(setOptions).catch(() => undefined); }, []);
-    useEffect(() => { if (peopleQuery.trim().length < 2) return; const timer = window.setTimeout(() => void listActionOptions(peopleQuery).then(setOptions).catch(() => undefined), 300); return () => window.clearTimeout(timer); }, [peopleQuery]);
+    useEffect(() => {
+        if (!resourceKey || peopleQuery.trim().length < 2) return;
+        const timer = window.setTimeout(() => { setOptionsLoading(true); void listActionOptions(peopleQuery, resourceKey).then((next) => setOptions((current) => ({ ...current, people: next.people, dependencies: next.dependencies }))).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Could not load people for this context.")).finally(() => setOptionsLoading(false)); }, 300);
+        return () => window.clearTimeout(timer);
+    }, [peopleQuery, resourceKey]);
     const submit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
         event.preventDefault(); setBusy(true); setError(null); setCreated(null);
         const formElement = event.currentTarget;
@@ -367,7 +373,7 @@ const CreateActionForm: React.FC<{ identity: NixorIdentity; onCreated: () => Pro
                 title: formValue(form, "title"), description: formValue(form, "description"),
                 assignee_refs: [{ identity_ref: formValue(form, "assignee"), role: "assignee" }],
                 acceptance_reviewer_ref: formValue(form, "reviewer") || undefined,
-                resource_key: formValue(form, "resource_key") || undefined,
+                resource_key: resourceKey || undefined,
                 priority: formValue(form, "priority") as "low" | "normal" | "high" | "critical",
                 category: formValue(form, "category", "general"),
                 due_at: toIsoDateTime(formValue(form, "due_at")),
@@ -387,11 +393,12 @@ const CreateActionForm: React.FC<{ identity: NixorIdentity; onCreated: () => Pro
             <form onSubmit={(event) => void submit(event)}>
                 <label>Title<input name="title" minLength={3} maxLength={240} required /></label>
                 <label>Description<textarea name="description" minLength={1} maxLength={20000} required /></label>
-                <label>Find people<input value={peopleQuery} onChange={(event) => setPeopleQuery(event.target.value)} minLength={2} placeholder="Name or institutional context" /></label>
+                <label>Governed context<select name="resource_key" value={resourceKey} onChange={(event) => { setResourceKey(event.target.value); setPeopleQuery(""); setOptions((current) => ({ ...current, people: [], dependencies: [] })); }} required><option value="">Choose a governed context</option>{options.resources.map((resource) => <option key={resource.resource_key} value={resource.resource_key}>{resource.display_name}</option>)}</select></label>
+                <label>Find people<input value={peopleQuery} onChange={(event) => setPeopleQuery(event.target.value)} minLength={2} disabled={!resourceKey} placeholder={resourceKey ? "Name or institutional context" : "Choose a context first"} /></label>
                 <label>Assignee<select name="assignee" required><option value="">Choose a person</option>{options.people.map((person) => <option key={person.identity_ref} value={person.identity_ref}>{person.display_name}{person.entity_name ? ` — ${person.entity_name}` : ""}</option>)}</select></label>
                 <label>Acceptance reviewer (optional)<select name="reviewer"><option value="">No separate reviewer</option>{options.people.map((person) => <option key={person.identity_ref} value={person.identity_ref}>{person.display_name}</option>)}</select></label>
                 <label>Category<input name="category" defaultValue="general" minLength={2} maxLength={120} required /></label>
-                <label>Governed context<select name="resource_key"><option value="">No governed context</option>{options.resources.map((resource) => <option key={resource.resource_key} value={resource.resource_key}>{resource.display_name}</option>)}</select></label>
+                {optionsLoading && <p role="status">Loading eligible people and dependencies…</p>}
                 <label>Priority<select name="priority" defaultValue="normal"><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="critical">Critical</option></select></label>
                 <label>Due date and time (optional)<input name="due_at" type="datetime-local" /></label>
                 <label>Due-date time zone<input name="timezone" defaultValue="Asia/Karachi" minLength={3} maxLength={100} required /></label>
