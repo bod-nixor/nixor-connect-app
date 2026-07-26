@@ -12,6 +12,7 @@ interface NixorSsoConfig {
     connect_api_base_url?: unknown;
     governance_api_base_url?: unknown;
     google_sso_enabled?: unknown;
+    managed_crypto?: unknown;
 }
 
 function getNixorConfig(): NixorSsoConfig | undefined {
@@ -38,6 +39,11 @@ export function getNixorConnectApiBaseUrl(): string {
 
 export function isNixorGoogleSsoEnabled(): boolean {
     return getNixorConfig()?.google_sso_enabled !== false;
+}
+
+/** Managed tenants retain encryption settings without interrupting sign-in. */
+export function isNixorManagedCrypto(): boolean {
+    return getNixorConfig()?.managed_crypto === true;
 }
 
 export function clearStoredNixorSsoError(): void {

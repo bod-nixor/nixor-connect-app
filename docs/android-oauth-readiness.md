@@ -49,6 +49,12 @@ The API admits credentials only from the configured Connect web origin and
 it never allows wildcard credentialed CORS. Android exchange cookies use
 `Secure; SameSite=None` because `https://localhost` is cross-site to the API.
 
+For a Nixor-managed tenant, set `nixor.managed_crypto: true` in the client
+configuration. It suppresses blocking cross-signing/recovery setup screens and
+recurring setup toasts, while leaving the standard Encryption settings
+available for security status and recovery information. Do not enable it for
+unmanaged installations.
+
 ## Release order and rollback
 
 1. Back up the Panapticon database and apply the additive migration.

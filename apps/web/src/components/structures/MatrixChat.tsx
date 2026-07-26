@@ -127,6 +127,7 @@ import { getHtmlText } from "../../HtmlUtils";
 import { NotificationLevel } from "../../stores/notifications/NotificationLevel";
 import { type UserTab } from "../views/dialogs/UserTab";
 import { shouldSkipSetupEncryption } from "../../utils/crypto/shouldSkipSetupEncryption";
+import { isNixorManagedCrypto } from "../../nixor/sso";
 import { Filter } from "../views/dialogs/spotlight/Filter";
 import { SessionLockStolenView } from "./auth/SessionLockStolenView";
 import { ConfirmSessionLockTheftView } from "./auth/ConfirmSessionLockTheftView";
@@ -452,7 +453,7 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
             return;
         }
 
-        if (crossSigningIsSetUp) {
+        if (crossSigningIsSetUp && !isNixorManagedCrypto()) {
             // if the user has previously set up cross-signing, verify this device so we can fetch the
             // private keys.
 
@@ -462,7 +463,7 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
             } else {
                 this.setStateForNewView({ view: Views.COMPLETE_SECURITY });
             }
-        } else if (!(await shouldSkipSetupEncryption(cli))) {
+        } else if (!isNixorManagedCrypto() && !(await shouldSkipSetupEncryption(cli))) {
             // if cross-signing is not yet set up, do so now if possible.
             InitialCryptoSetupStore.sharedInstance().startInitialCryptoSetup(
                 cli,

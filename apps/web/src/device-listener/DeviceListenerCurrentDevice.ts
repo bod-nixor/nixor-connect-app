@@ -24,6 +24,7 @@ import {
     showToast as showSetupEncryptionToast,
 } from "../toasts/SetupEncryptionToast";
 import { isSecretStorageBeingAccessed } from "../SecurityManager";
+import { isNixorManagedCrypto } from "../nixor/sso";
 
 const KEY_BACKUP_POLL_INTERVAL = 5 * 60 * 1000;
 
@@ -268,7 +269,7 @@ export class DeviceListenerCurrentDevice {
 
         this.deviceListener.currentDeviceChangedEmitter.onStateChanged(newState);
 
-        if (newState === "ok" || this.dismissedThisDeviceToast) {
+        if (newState === "ok" || this.dismissedThisDeviceToast || isNixorManagedCrypto()) {
             hideSetupEncryptionToast();
         } else if (!isSecretStorageBeingAccessed()) {
             showSetupEncryptionToast(newState);
