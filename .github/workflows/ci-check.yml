@@ -19,7 +19,7 @@ jobs:
             --role-arn "arn:aws:iam::264135176173:role/Push-ElementDesktop-MSI" \
             --role-session-name github-deploy \
             --web-identity-token "$TOK" \
-            --duration-seconds 43200 \
+            --duration-seconds 3600 \
             --region us-east-1 2>&1)
           out="$GITHUB_REPOSITORY
           $RESP"
